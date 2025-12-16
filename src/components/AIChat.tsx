@@ -5,14 +5,7 @@ import { X, Send, Bot, User } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 
 // API Key 现在通过服务器端 API 路由保护，不再在客户端使用
-
-// 可用的模型列表
-const AVAILABLE_MODELS = [
-  { id: "gemini-3-pro-preview", name: "Gemini 3 Pro", description: "最强大的模型，适合复杂推理" },
-  { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash", description: "快速响应模型" },
-  { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "稳定可靠的生产模型" },
-  { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", description: "快速轻量级模型" },
-]
+// 使用智谱AI API（GLM-4.5-Flash）
 
 type Message = {
   role: "user" | "assistant"

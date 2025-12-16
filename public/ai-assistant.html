@@ -259,9 +259,9 @@
     const SUPABASE_URL = 'https://aitxgwfqtcrxxcglwmrq.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpdHhnd2ZxdGNyeHhjZ2x3bXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc1NTQsImV4cCI6MjA4MTIyMzU1NH0.OLDft-LmrRZEGEUEzJ9srevbnI68vV9jWf4Ym05lkAw'
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    // 使用 API 路由来保护 API Key
+    // 使用 API 路由来保护 API Key（智谱AI）
     // 如果前台和后台在同一域名，使用相对路径；否则需要配置后台API的完整URL
-    const GEMINI_API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+    const CHAT_API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
       ? 'http://localhost:3000/api/chat'  // 本地开发
       : window.location.origin + '/api/chat'  // 生产环境
 
@@ -340,7 +340,7 @@
         const publicData = await fetchPublicData()
 
         // 通过 API 路由调用智谱API（保护 API Key，流式响应）
-        const response = await fetch(GEMINI_API_URL, {
+        const response = await fetch(CHAT_API_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

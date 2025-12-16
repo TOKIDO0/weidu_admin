@@ -90,7 +90,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 flex">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onChatOpen={() => setChatOpen(true)} />
-      <div className="flex min-w-0 flex-1 flex-col w-full lg:w-auto">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-4 py-3 flex items-center">
           <button
             onClick={() => setSidebarOpen(true)}

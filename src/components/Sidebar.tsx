@@ -68,10 +68,9 @@ export function Sidebar({ isOpen, onClose, onChatOpen }: { isOpen?: boolean; onC
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
         w-64 shrink-0 bg-white border-r border-gray-200 
-        flex-col h-screen
+        flex flex-col h-screen
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        lg:flex
       `}>
       {/* Logo Section */}
       <div className="p-4 sm:p-6 pb-4">
