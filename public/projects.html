@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作品展示 - 维度空间设计</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Outfit:wght@200;300;400;600&family=Syncopate:wght@400;700&display=swap');
+    :root {
+      --brand-orange: #ff4d00;
+      --deep-bg: #050505;
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--deep-bg);
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--brand-orange); }
+
+    .reveal-blur {
+      opacity: 0; filter: blur(20px); transform: translateY(40px);
+      transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform, opacity, filter;
+    }
+    .reveal-blur.active { opacity: 1; filter: blur(0); transform: translateY(0); }
+
+    .portfolio-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; grid-auto-rows: 300px; }
+    .project-card { position: relative; overflow: hidden; border: 1px solid transparent; transition: all 0.5s var(--ease-smooth); cursor: pointer; }
+    .span-8 { grid-column: span 8; }
+    .span-4 { grid-column: span 4; }
+    @media (max-width: 768px) {
+      .portfolio-grid { grid-template-columns: 1fr; grid-auto-rows: auto; }
+      .span-8, .span-4 { grid-column: span 1; height: 300px; }
+    }
+    .project-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.7s var(--ease-smooth); filter: grayscale(100%) contrast(1.1); }
+    .project-info { position: absolute; bottom: 0; left: 0; width: 100%; padding: 30px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); transform: translateY(20px); opacity: 0; transition: all 0.5s ease; }
+    .project-card:hover { border-color: var(--brand-orange); }
+    .project-card:hover img { transform: scale(1.05); filter: grayscale(0%) contrast(1); }
+    .project-card:hover .project-info { transform: translateY(0); opacity: 1; }
+
+    .pf-modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(15px);
+      z-index: 9999; display: flex; align-items: center; justify-content: center;
+      opacity: 0; visibility: hidden; transition: all 0.5s var(--ease-smooth);
+    }
+    .pf-modal-overlay.active { opacity: 1; visibility: visible; }
+    .pf-modal-container {
+      position: relative; width: 90%; max-width: 1600px; height: 80vh;
+      display: flex; align-items: center; perspective: 1500px;
+    }
+    .pf-layer-image {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 75%; height: 100%;
+      background: #111; overflow: hidden; border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5); opacity: 0; transform: translateX(50px);
+      transition: all 0.8s var(--ease-spring);
+    }
+    .pf-modal-overlay.active .pf-layer-image { opacity: 1; transform: translateX(0); }
+    .pf-slider-track { display: flex; flex-direction: column; height: 100%; width: 100%; transition: transform 0.8s cubic-bezier(0.25, 1, 0.3, 1); }
+    .pf-slide-img { height: 100%; width: 100%; object-fit: cover; flex-shrink: 0; display: block; filter: brightness(0.8); }
+
+    .pf-layer-info {
+      position: relative; z-index: 10; width: 35%; min-width: 420px;
+      background: rgba(20, 20, 20, 0.95);
+      backdrop-filter: blur(40px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.8), 
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 50px;
+      display: flex; flex-direction: column; gap: 30px;
+      height: auto; max-height: 85vh;
+      overflow-y: auto;
+      opacity: 0; transform: translateX(-50px);
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .pf-modal-overlay.active .pf-layer-info {
+      opacity: 1; 
+      transform: translateX(0);
+    }
+
+    .pf-stagger-item {
+      opacity: 0; transform: translateY(20px) scale(0.95); filter: blur(10px);
+      transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .pf-modal-overlay.active .pf-stagger-item {
+      opacity: 1; transform: translateY(0) scale(1); filter: blur(0);
+    }
+
+    @media (max-width: 1024px) {
+      .pf-modal-container { flex-direction: column-reverse; height: 95vh; width: 95%; }
+      .pf-layer-image { width: 100%; height: 50%; position: relative; border-radius: 20px 20px 0 0; }
+      .pf-layer-info { width: 100%; height: 50%; min-width: auto; padding: 30px; border-radius: 0 0 20px 20px; overflow-y: auto; transform: none !important; }
+    }
+
+    .pf-title-group h2 { font-family: 'Outfit', sans-serif; font-size: 2.5rem; line-height: 1.1; font-weight: 300; color: white; margin-bottom: 10px; }
+    .pf-title-group span { color: var(--brand-orange); font-family: 'Syncopate'; font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase; }
+    .pf-desc { font-size: 0.95rem; line-height: 1.7; color: #aaa; font-weight: 300; }
+    .pf-hud-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .pf-hud-item { display: flex; flex-direction: column; }
+    .pf-hud-item label { font-size: 0.7rem; color: #666; font-family: 'Syncopate'; margin-bottom: 6px; }
+    .pf-hud-item span { font-size: 1rem; color: #fff; font-family: 'Outfit'; font-weight: 400; }
+    .pf-nav-group { position: absolute; bottom: 30px; right: 30px; z-index: 20; display: flex; gap: 10px; }
+    .pf-nav-btn { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); color: white; cursor: pointer; transition: all 0.2s; }
+    .pf-nav-btn:hover { background: var(--brand-orange); border-color: var(--brand-orange); }
+    .pf-close-float { 
+      position: absolute; 
+      top: 20px; 
+      right: 20px; 
+      z-index: 50; 
+      width: 40px; 
+      height: 40px; 
+      border-radius: 50%; 
+      background: rgba(255,255,255,0.1); 
+      color: white; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      cursor: pointer; 
+      transition: all 0.3s; 
+      border: 1px solid rgba(255,255,255,0.2);
+      overflow: hidden;
+    }
+    .pf-close-float::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+      transition: left 0.6s ease;
+    }
+    .pf-close-float:hover::before {
+      left: 100%;
+    }
+    .pf-close-float:hover { 
+      background: rgba(255,255,255,0.2); 
+      color: #fff; 
+      transform: rotate(90deg);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    }
+    .pf-action-btn {
+      padding: 14px 21px; 
+      background: rgb(51, 51, 51); 
+      border-radius: 100px; 
+      border: none;
+      background-image: linear-gradient(90deg, rgba(255, 255, 255, 1) 59%, rgba(0, 0, 0, 1) 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent; 
+      font-family: 'SF Pro', 'Inter', sans-serif; 
+      font-size: 17px; 
+      font-weight: 600;
+      cursor: pointer; 
+      transition: all 0.2s ease-in-out;
+      text-align: center; 
+      width: 100%; 
+      box-shadow: inset 0px 0px 16px 0px rgb(242, 242, 242), 
+                  inset 0px 0px 1px 1px rgb(153, 153, 153), 
+                  inset 0px 0px 1px 1px rgba(255, 255, 255, 0.15), 
+                  inset -1px -1px 1px 0.5px rgba(255, 255, 255, 0.75), 
+                  inset 1px 1px 1px 0.5px rgba(255, 255, 255, 0.75), 
+                  inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.8), 
+                  inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.75), 
+                  0px 1px 8px 0px rgba(0, 0, 0, 0.1), 
+                  0px 0px 2px 0px rgba(0, 0, 0, 0.1);
+    }
+    .pf-action-btn:hover { opacity: 0.87; transform: translateY(-1px); }
+    .pf-action-btn:active { transform: scale(0.95); }
+
+    .filter-sidebar {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 24px;
+      padding: 24px;
+    }
+
+    .range-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      outline: none;
+    }
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--brand-orange);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .range-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: var(--brand-orange);
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+    .range-slider-dual {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: transparent;
+      border-radius: 3px;
+      outline: none;
+      pointer-events: none;
+      position: absolute;
+    }
+    .range-slider-dual::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--brand-orange);
+      border-radius: 50%;
+      cursor: pointer;
+      pointer-events: all;
+      position: relative;
+      z-index: 3;
+    }
+    .range-slider-dual::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: var(--brand-orange);
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      pointer-events: all;
+      position: relative;
+      z-index: 3;
+    }
+    .range-slider-dual::-webkit-slider-runnable-track {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    .range-slider-dual::-moz-range-track {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-neutral-200 antialiased selection:bg-orange-500 selection:text-white">
+
+<!-- Background (component) added by Aura -->
+<div class="aura-background-component fixed top-0 w-full h-screen -z-10" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent)"><div data-us-project="tCcBHRpF4pd3u3hQXCm5" class="absolute w-full h-full left-0 top-0 -z-10"></div>
+<script type="text/javascript">
+  !function(){if(!window.UnicornStudio){window.UnicornStudio={isInitialized:!1};var i=document.createElement("script");i.src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.34/dist/unicornStudio.umd.js",i.onload=function(){window.UnicornStudio.isInitialized||(UnicornStudio.init(),window.UnicornStudio.isInitialized=!0)},(document.head || document.body).appendChild(i)}}();
+</script></div>
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-neutral-950/70 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <a href="index.html" class="flex items-center -ml-4">
+        <img src="https://dl2.img.timecdn.cn/2025/12/10/LOGO.png" alt="WeiDU LOGO" class="h-8 w-auto">
+      </a>
+      <div class="hidden md:flex items-center space-x-8 text-xs font-['Syncopate'] uppercase tracking-widest text-neutral-400">
+        <a href="index.html" class="hover:text-white transition-colors duration-300">首页</a>
+        <a href="index.html#work" class="hover:text-white transition-colors duration-300">作品案例</a>
+        <a href="index.html#philosophy" class="hover:text-white transition-colors duration-300">设计理念</a>
+        <a href="index.html#testimonials" class="hover:text-white transition-colors duration-300">客户评价</a>
+        <a href="project-track.html" class="hover:text-white transition-colors duration-300">项目跟踪</a>
+        <a href="index.html#contact" class="hover:text-white transition-colors duration-300">联系我们</a>
+      </div>
+      <a href="index.html#contact" class="group relative inline-flex h-9 items-center justify-center overflow-hidden rounded-full p-[1px]">
+        <span class="absolute inset-[-1000%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#171717_0%,#ff4d00_50%,#171717_100%)]"></span>
+        <span class="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-neutral-950 px-5 text-xs font-medium text-neutral-300 backdrop-blur-3xl transition-colors group-hover:text-white">
+          <iconify-icon icon="solar:phone-linear" width="16" class="mr-2"></iconify-icon> 预约咨询
+        </span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="pt-24 pb-12 px-4 md:px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="mb-12 reveal-blur">
+        <h1 class="text-4xl md:text-5xl font-medium text-white tracking-tight font-serif mb-4">所有作品</h1>
+        <p class="text-neutral-400">探索我们的设计作品集</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Filter Sidebar -->
+        <div class="lg:col-span-1">
+          <div class="filter-sidebar sticky top-24">
+            <h3 class="text-lg font-semibold text-white mb-6">筛选条件</h3>
+            
+            <!-- 位置筛选 -->
+            <div class="mb-6">
+              <label class="block text-xs uppercase tracking-wider text-neutral-500 mb-3">位置</label>
+              <select id="filterLocation" class="w-full bg-neutral-900/50 border border-white/10 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-orange-500">
+                <option value="">全部位置</option>
+              </select>
+            </div>
+
+            <!-- 类型筛选 -->
+            <div class="mb-6">
+              <label class="block text-xs uppercase tracking-wider text-neutral-500 mb-3">类型</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" value="住宅" class="filter-category" checked>
+                  <span class="text-sm text-neutral-300">住宅</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" value="商铺" class="filter-category" checked>
+                  <span class="text-sm text-neutral-300">商铺</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" value="" class="filter-category" checked>
+                  <span class="text-sm text-neutral-300">其他</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 金额范围 -->
+            <div class="mb-6">
+              <label class="block text-xs uppercase tracking-wider text-neutral-500 mb-3">
+                金额范围: <span id="costRangeDisplay">全部</span>
+              </label>
+              <div class="relative" style="height: 40px;">
+                <input type="range" id="costMin" min="0.5" max="50" step="0.5" value="0.5" class="range-slider-dual" style="position: absolute; width: 100%; z-index: 2;">
+                <input type="range" id="costMax" min="0.5" max="50" step="0.5" value="50" class="range-slider-dual" style="position: absolute; width: 100%; z-index: 1;">
+              </div>
+              <div class="flex justify-between text-xs text-neutral-400 mt-2">
+                <span id="costMinValue">0.5万</span>
+                <span id="costMaxValue">50万</span>
+              </div>
+            </div>
+
+            <button onclick="applyFilters()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 rounded-lg transition-colors">
+              应用筛选
+            </button>
+            <button onclick="resetFilters()" class="w-full mt-2 border border-white/20 hover:border-orange-500 text-white font-medium py-2 rounded-lg transition-colors">
+              重置
+            </button>
+          </div>
+        </div>
+
+        <!-- Projects Grid -->
+        <div class="lg:col-span-3">
+          <div class="portfolio-grid reveal-blur" id="portfolioGrid"></div>
+          <div id="noProjects" class="hidden text-center py-12 text-neutral-400">
+            没有找到符合条件的项目
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Portfolio Modal -->
+  <div id="pfModal" class="pf-modal-overlay">
+    <div class="pf-modal-container">
+      <div class="pf-layer-image">
+        <div class="pf-slider-track" id="pfTrack"></div>
+        <div class="pf-nav-group">
+          <div class="pf-nav-btn" onclick="changeSlide(-1)"><iconify-icon icon="solar:arrow-up-linear"></iconify-icon></div>
+          <div class="pf-nav-btn" onclick="changeSlide(1)"><iconify-icon icon="solar:arrow-down-linear"></iconify-icon></div>
+        </div>
+      </div>
+      <div class="pf-layer-info" id="pfInfoBox">
+        <button class="pf-close-float" onclick="closePfModal()"><iconify-icon icon="solar:close-circle-linear" width="24"></iconify-icon></button>
+        <div class="pf-title-group pf-stagger-item" style="transition-delay: 0.1s">
+          <div class="text-xs text-gray-400 mb-2 font-['Syncopate'] tracking-wider" id="pfProjectId" style="display: none; font-size: 10px;">项目ID: <span id="pfProjectIdValue" style="font-size: 10px;"></span></div>
+          <span id="pfCategory">RESIDENTIAL</span>
+          <h2 id="pfTitle">Project Name</h2>
+        </div>
+        <p class="pf-desc pf-stagger-item" style="transition-delay: 0.2s" id="pfDesc">Description...</p>
+        <div class="pf-hud-bar pf-stagger-item" style="transition-delay: 0.3s">
+          <div class="pf-hud-item"><label>工期</label><span id="pfDuration">0 Months</span></div>
+          <div class="pf-hud-item"><label>面积</label><span id="pfArea">0 m²</span></div>
+          <div class="pf-hud-item"><label>造价</label><span id="pfCost">¥ 0</span></div>
+          <div class="pf-hud-item"><label>地点</label><span id="pfLoc">City</span></div>
+        </div>
+        <div style="margin-top: auto;" class="pf-stagger-item">
+          <button class="pf-action-btn" onclick="startProjectConsultation()">启动项目咨询</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://aitxgwfqtcrxxcglwmrq.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpdHhnd2ZxdGNyeHhjZ2x3bXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc1NTQsImV4cCI6MjA4MTIyMzU1NH0.OLDft-LmrRZEGEUEzJ9srevbnI68vV9jWf4Ym05lkAw'
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    let allProjects = []
+    let filteredProjects = []
+    let currentProjectImages = []
+    let currentImgIndex = 0
+    let currentProjectId = null
+
+    // Reveal animation
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active')
+        }
+      })
+    }, { threshold: 0.15 })
+    document.querySelectorAll('.reveal-blur').forEach(el => revealObserver.observe(el))
+
+    // Load projects
+    async function loadProjects() {
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('published', true)
+          .order('pinned', { ascending: false })
+          .order('sort_order', { ascending: false })
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        allProjects = data || []
+        filteredProjects = [...allProjects]
+
+        // Populate location filter
+        const locations = [...new Set(allProjects.map(p => p.location).filter(Boolean))]
+        const locationSelect = document.getElementById('filterLocation')
+        locations.forEach(loc => {
+          const option = document.createElement('option')
+          option.value = loc
+          option.textContent = loc
+          locationSelect.appendChild(option)
+        })
+
+        // Update cost range - 固定范围 0.5万-50万
+        // 不再根据项目动态调整，保持固定范围
+        document.getElementById('costMin').min = 0.5
+        document.getElementById('costMin').max = 50
+        document.getElementById('costMin').value = 0.5
+        document.getElementById('costMax').min = 0.5
+        document.getElementById('costMax').max = 50
+        document.getElementById('costMax').value = 50
+        updateCostDisplay()
+
+        renderProjects()
+      } catch (err) {
+        console.error('加载项目失败:', err)
+      }
+    }
+
+    function updateCostDisplay() {
+      const min = parseFloat(document.getElementById('costMin').value)
+      const max = parseFloat(document.getElementById('costMax').value)
+      const maxLimit = parseFloat(document.getElementById('costMax').max)
+      
+      // 确保最小值不超过最大值
+      if (min > max) {
+        document.getElementById('costMin').value = max
+        return updateCostDisplay()
+      }
+      
+      document.getElementById('costMinValue').textContent = min + '万'
+      document.getElementById('costMaxValue').textContent = max >= maxLimit ? max + '万+' : max + '万'
+      
+      if (min <= 0.5 && max >= maxLimit) {
+        document.getElementById('costRangeDisplay').textContent = '全部'
+      } else {
+        document.getElementById('costRangeDisplay').textContent = min + '万 - ' + (max >= maxLimit ? max + '万+' : max + '万')
+      }
+      
+      // 更新滑条之间的进度条颜色
+      const minSlider = document.getElementById('costMin')
+      const maxSlider = document.getElementById('costMax')
+      const range = maxLimit - 0.5
+      const minPercent = ((min - 0.5) / range) * 100
+      const maxPercent = ((max - 0.5) / range) * 100
+      minSlider.style.setProperty('--range-progress', minPercent + '%')
+      maxSlider.style.setProperty('--range-progress', maxPercent + '%')
+    }
+
+    document.getElementById('costMin').addEventListener('input', function() {
+      const min = parseFloat(this.value)
+      const max = parseFloat(document.getElementById('costMax').value)
+      if (min > max) {
+        document.getElementById('costMax').value = min
+      }
+      updateCostDisplay()
+    })
+    document.getElementById('costMax').addEventListener('input', function() {
+      const min = parseFloat(document.getElementById('costMin').value)
+      const max = parseFloat(this.value)
+      if (max < min) {
+        document.getElementById('costMin').value = max
+      }
+      updateCostDisplay()
+    })
+    
+    // 初始化显示
+    updateCostDisplay()
+
+    function applyFilters() {
+      const location = document.getElementById('filterLocation').value
+      const categories = Array.from(document.querySelectorAll('.filter-category:checked')).map(cb => cb.value)
+      const minCost = parseFloat(document.getElementById('costMin').value)
+      const maxCost = parseFloat(document.getElementById('costMax').value)
+
+      filteredProjects = allProjects.filter(p => {
+        if (location && p.location !== location) return false
+        
+        const category = p.category || ''
+        if (!categories.includes(category) && !categories.includes('')) return false
+
+        const costStr = p.cost || '0'
+        const match = costStr.match(/(\d+)/)
+        const cost = match ? parseInt(match[1]) : 0
+        if (cost < minCost || cost > maxCost) return false
+
+        return true
+      })
+
+      renderProjects()
+    }
+
+    function resetFilters() {
+      document.getElementById('filterLocation').value = ''
+      document.querySelectorAll('.filter-category').forEach(cb => cb.checked = true)
+      document.getElementById('costMin').value = 0.5
+      document.getElementById('costMax').value = 50
+      updateCostDisplay()
+      filteredProjects = [...allProjects]
+      renderProjects()
+    }
+
+    function renderProjects() {
+      const grid = document.getElementById('portfolioGrid')
+      const noProjects = document.getElementById('noProjects')
+
+      if (!filteredProjects || filteredProjects.length === 0) {
+        grid.innerHTML = ''
+        noProjects.classList.remove('hidden')
+        return
+      }
+
+      noProjects.classList.add('hidden')
+      grid.innerHTML = ''
+
+      filteredProjects.forEach((p, idx) => {
+        const spanClass = (idx === 0 || idx % 5 === 0 || idx % 8 === 0) ? 'span-8' : 'span-4'
+        const card = document.createElement('div')
+        card.className = `project-card ${spanClass}`
+        card.onclick = () => openPfModal({
+          id: p.id,
+          title: p.title,
+          category: p.category || '',
+          location: p.location || '',
+          duration: p.duration || '',
+          area: p.area || '',
+          cost: p.cost || '',
+          desc: p.description || '',
+          images: p.images || []
+        })
+
+        const coverImg = p.cover_url || (p.images && p.images.length > 0 ? p.images[0] : 'https://via.placeholder.com/800x600?text=No+Image')
+        card.innerHTML = `
+          <img src="${coverImg}" alt="${p.title || ''}" onerror="this.src='https://via.placeholder.com/800x600?text=No+Image'">
+          <div class="project-info">
+            <span class="text-[#ff4d00] text-xs font-['Syncopate'] mb-1 block">${p.category || '项目'}</span>
+            <h3 class="text-2xl font-semibold text-white">${p.title || ''}</h3>
+            <p class="text-white/60 text-sm mt-1">${p.location || ''}${p.area ? ' / ' + p.area : ''}</p>
+          </div>
+        `
+        grid.appendChild(card)
+      })
+    }
+
+    function openPfModal(data) {
+      currentProjectId = data.id
+      document.getElementById('pfCategory').innerText = data.category || 'PROJECT'
+      document.getElementById('pfTitle').innerText = data.title
+      document.getElementById('pfDesc').innerText = data.desc
+      document.getElementById('pfLoc').innerText = data.location || '未指定'
+      document.getElementById('pfArea').innerText = data.area || '未指定'
+      document.getElementById('pfCost').innerText = data.cost || '未指定'
+      document.getElementById('pfDuration').innerText = data.duration || '未指定'
+      
+      // 显示项目ID
+      if (data.id) {
+        document.getElementById('pfProjectIdValue').innerText = data.id
+        document.getElementById('pfProjectId').style.display = 'block'
+      } else {
+        document.getElementById('pfProjectId').style.display = 'none'
+      }
+
+      currentProjectImages = data.images || []
+      currentImgIndex = 0
+      const track = document.getElementById('pfTrack')
+      track.innerHTML = ''
+      if (currentProjectImages.length > 0) {
+        currentProjectImages.forEach(src => {
+          const img = document.createElement('img')
+          img.src = src
+          img.className = 'pf-slide-img'
+          track.appendChild(img)
+        })
+      } else {
+        const placeholder = document.createElement('div')
+        placeholder.className = 'pf-slide-img'
+        placeholder.style.background = '#111'
+        placeholder.style.display = 'flex'
+        placeholder.style.alignItems = 'center'
+        placeholder.style.justifyContent = 'center'
+        placeholder.style.color = '#666'
+        placeholder.textContent = '暂无图片'
+        track.appendChild(placeholder)
+      }
+      track.style.transform = `translateY(0)`
+
+      const modal = document.getElementById('pfModal')
+      modal.classList.add('active')
+      document.body.style.overflow = 'hidden'
+      window.addEventListener('mousemove', moveInfoBox)
+    }
+
+    function closePfModal() {
+      const modal = document.getElementById('pfModal')
+      modal.classList.remove('active')
+      document.body.style.overflow = ''
+      window.removeEventListener('mousemove', moveInfoBox)
+      const pfInfoBox = document.getElementById('pfInfoBox')
+      pfInfoBox.style.transform = 'translateX(-50px) rotateY(10deg)'
+    }
+
+    function moveInfoBox(e) {
+      const pfInfoBox = document.getElementById('pfInfoBox')
+      const x = (window.innerWidth / 2 - e.clientX) / 40
+      const y = (window.innerHeight / 2 - e.clientY) / 40
+      pfInfoBox.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`
+    }
+
+    function changeSlide(direction) {
+      if (currentProjectImages.length === 0) return
+      currentImgIndex = (currentImgIndex + direction + currentProjectImages.length) % currentProjectImages.length
+      document.getElementById('pfTrack').style.transform = `translateY(-${currentImgIndex * 100}%)`
+    }
+
+    function startProjectConsultation() {
+      if (!currentProjectId) return
+      
+      // 关闭模态框
+      closePfModal()
+      
+      // 等待动画完成后再跳转
+      setTimeout(() => {
+        // 跳转到联系页面，并传递项目ID
+        const projectIdParam = encodeURIComponent(currentProjectId)
+        window.location.href = `index.html?projectId=${projectIdParam}#contact`
+      }, 300)
+    }
+
+    // Initialize
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(loadProjects, 500)
+      })
+    } else {
+      setTimeout(loadProjects, 500)
+    }
+  </script>
+</body>
+</html>
+

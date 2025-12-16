@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>条款说明 - 维度空间设计</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Outfit:wght@200;300;400;600&family=Syncopate:wght@400;700&display=swap');
+    :root {
+      --brand-orange: #ff4d00;
+      --deep-bg: #050505;
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--deep-bg);
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--brand-orange); }
+
+    .water-glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-top: 1px solid rgba(255, 255, 255, 0.3);
+      border-left: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 40px;
+      border-radius: 24px;
+      position: relative;
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.5),
+        inset 0 0 40px rgba(255, 255, 255, 0.02);
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .reveal-blur {
+      opacity: 0; filter: blur(20px); transform: translateY(40px);
+      transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform, opacity, filter;
+    }
+    .reveal-blur.active { opacity: 1; filter: blur(0); transform: translateY(0); }
+    
+    /* 页面加载时的模糊变清晰动画 */
+    @keyframes fadeInBlur {
+      0% {
+        opacity: 0;
+        filter: blur(20px);
+        transform: translateY(30px);
+      }
+      100% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0);
+      }
+    }
+    
+    .page-content {
+      animation: fadeInBlur 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-neutral-200 antialiased selection:bg-orange-500 selection:text-white">
+
+<!-- Background (component) added by Aura -->
+<div class="aura-background-component fixed top-0 w-full h-screen -z-10" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent)"><div data-us-project="tCcBHRpF4pd3u3hQXCm5" class="absolute w-full h-full left-0 top-0 -z-10"></div>
+<script type="text/javascript">
+  !function(){if(!window.UnicornStudio){window.UnicornStudio={isInitialized:!1};var i=document.createElement("script");i.src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.34/dist/unicornStudio.umd.js",i.onload=function(){window.UnicornStudio.isInitialized||(UnicornStudio.init(),window.UnicornStudio.isInitialized=!0)},(document.head || document.body).appendChild(i)}}();
+</script></div>
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-neutral-950/70 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <a href="index.html" class="flex items-center -ml-4">
+        <img src="https://dl2.img.timecdn.cn/2025/12/10/LOGO.png" alt="WeiDU LOGO" class="h-8 w-auto">
+      </a>
+      <div class="hidden md:flex items-center space-x-8 text-xs font-['Syncopate'] uppercase tracking-widest text-neutral-400">
+        <a href="index.html#work" class="hover:text-white transition-colors duration-300">作品案例</a>
+        <a href="index.html#philosophy" class="hover:text-white transition-colors duration-300">设计理念</a>
+        <a href="index.html#testimonials" class="hover:text-white transition-colors duration-300">客户评价</a>
+        <a href="project-track.html" class="hover:text-white transition-colors duration-300">项目跟踪</a>
+        <a href="index.html#contact" class="hover:text-white transition-colors duration-300">联系我们</a>
+      </div>
+      <a href="index.html#contact" class="group relative inline-flex h-9 items-center justify-center overflow-hidden rounded-full p-[1px]">
+        <span class="absolute inset-[-1000%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#171717_0%,#ff4d00_50%,#171717_100%)]"></span>
+        <span class="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-neutral-950 px-5 text-xs font-medium text-neutral-300 backdrop-blur-3xl transition-colors group-hover:text-white">
+          <iconify-icon icon="solar:phone-linear" width="16" class="mr-2"></iconify-icon> 预约咨询
+        </span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="min-h-screen pt-24 pb-12 px-4">
+    <div class="water-glass-card page-content">
+      <div class="mb-8">
+        <a href="index.html" class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-neutral-900/50 border border-white/10 hover:bg-neutral-800 hover:border-orange-500/50 transition-all text-neutral-400 hover:text-white mb-6">
+          <iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
+        </a>
+        <h1 class="text-4xl md:text-5xl font-medium text-white tracking-tight font-serif mb-4" id="termsTitle">条款说明</h1>
+      </div>
+
+      <div class="prose prose-invert max-w-none text-neutral-300 leading-relaxed" id="termsContent">
+        <!-- 内容将通过 JavaScript 动态加载 -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 根据URL参数加载不同的条款内容
+    const urlParams = new URLSearchParams(window.location.search)
+    const type = urlParams.get('type') || 'user'
+
+    const termsContent = {
+      user: {
+        title: '用户须知',
+        content: `
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">一、服务说明</h2>
+          <p class="mb-4">欢迎使用维度空间设计工作室的服务。在使用我们的服务前，请您仔细阅读本用户须知。通过使用我们的服务，即表示您同意遵守以下条款和条件。</p>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">二、服务范围</h2>
+          <p class="mb-4">我们提供以下设计服务：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>私宅全案设计：从毛坯到入住的一站式托管服务</li>
+            <li>商业空间策划：店铺、展厅、办公空间设计</li>
+            <li>软装陈列定制：家具、窗帘、灯具与艺术品的整体搭配</li>
+            <li>项目进度追踪：客户可随时查看项目进展</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">三、预约与咨询</h2>
+          <p class="mb-4">您可以通过以下方式联系我们：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>在线预约：通过网站预约系统选择合适的时间</li>
+            <li>立即联系：提交需求后，我们会在24小时内与您联系</li>
+            <li>电话咨询：177-7229-7239</li>
+            <li>微信咨询：添加官方微信进行咨询</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">四、信息提交</h2>
+          <p class="mb-4">在提交需求时，请确保：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>提供真实、准确的个人信息（姓名、电话等）</li>
+            <li>详细描述您的装修需求和期望</li>
+            <li>如有项目偏好，可在需求中注明项目ID</li>
+          </ul>
+          <p class="mb-4">我们承诺对您的个人信息严格保密，仅用于提供设计服务。</p>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">五、项目进度查询</h2>
+          <p class="mb-4">已签约客户可通过项目跟踪功能：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>使用预留手机号查询项目进度</li>
+            <li>查看施工阶段、照片更新、时间节点</li>
+            <li>了解项目最新情况</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">六、评价与反馈</h2>
+          <p class="mb-4">我们欢迎您对我们的服务进行评价：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>评价内容需真实、客观</li>
+            <li>评价需经过审核后才会公开显示</li>
+            <li>我们保留对不当评价进行处理的权力</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">七、隐私保护</h2>
+          <p class="mb-4">我们重视您的隐私：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>不会向第三方泄露您的个人信息</li>
+            <li>项目信息仅对签约客户开放</li>
+            <li>所有数据传输均采用加密技术</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">八、联系方式</h2>
+          <p class="mb-4">如有任何疑问，请通过以下方式联系我们：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>电话：177-7229-7239</li>
+            <li>邮箱：1810266895@qq.com</li>
+            <li>地址：新和县迎宾花园小区</li>
+          </ul>
+
+          <p class="mt-8 text-sm text-neutral-400">最后更新时间：2024年12月</p>
+        `
+      },
+      construction: {
+        title: '施工说明',
+        content: `
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">一、施工流程</h2>
+          <p class="mb-4">我们的施工流程严格按照行业标准执行：</p>
+          <ol class="list-decimal list-inside space-y-3 mb-4 ml-4">
+            <li><strong>设计阶段</strong>：方案确认、施工图绘制、材料选型</li>
+            <li><strong>施工准备</strong>：现场勘测、材料采购、施工队伍安排</li>
+            <li><strong>基础施工</strong>：水电改造、防水处理、基础结构</li>
+            <li><strong>主体施工</strong>：墙面处理、地面铺装、吊顶安装</li>
+            <li><strong>收尾阶段</strong>：细节处理、清洁验收、软装搭配</li>
+            <li><strong>竣工验收</strong>：全面检查、问题整改、交付使用</li>
+          </ol>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">二、施工标准</h2>
+          <p class="mb-4">我们承诺：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>严格按照设计图纸施工，确保施工质量</li>
+            <li>使用符合国家标准的优质材料</li>
+            <li>施工过程中保持现场整洁，文明施工</li>
+            <li>定期向客户汇报施工进度</li>
+            <li>及时处理施工中出现的问题</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">三、材料管理</h2>
+          <p class="mb-4">材料管理规范：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>所有材料进场前需经客户确认</li>
+            <li>材料需符合设计要求和质量标准</li>
+            <li>材料使用情况实时记录，可追溯</li>
+            <li>剩余材料妥善保管，可退换</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">四、质量保证</h2>
+          <p class="mb-4">质量保证措施：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>每个施工阶段都有质量检查点</li>
+            <li>隐蔽工程需客户验收后方可继续</li>
+            <li>提供2年质保服务（结构性问题）</li>
+            <li>质保期内免费维修（非人为损坏）</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">五、安全规范</h2>
+          <p class="mb-4">施工安全要求：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>施工人员持证上岗，规范操作</li>
+            <li>施工现场设置安全警示标识</li>
+            <li>严格遵守消防安全规定</li>
+            <li>施工期间不影响周边居民正常生活</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">六、进度管理</h2>
+          <p class="mb-4">施工进度管理：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>制定详细的施工计划和时间节点</li>
+            <li>每周向客户汇报施工进度</li>
+            <li>如遇特殊情况需延期，提前告知客户</li>
+            <li>客户可通过项目跟踪系统实时查看进度</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">七、验收标准</h2>
+          <p class="mb-4">竣工验收标准：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>所有施工项目符合设计图纸要求</li>
+            <li>材料使用符合合同约定</li>
+            <li>施工质量达到国家验收标准</li>
+            <li>现场清洁，无施工垃圾</li>
+            <li>所有设备设施正常运行</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">八、变更管理</h2>
+          <p class="mb-4">施工变更处理：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>如需变更设计方案，需双方书面确认</li>
+            <li>变更产生的费用按实际发生计算</li>
+            <li>变更可能影响工期，需提前沟通</li>
+            <li>重大变更需重新签订补充协议</li>
+          </ul>
+
+          <p class="mt-8 text-sm text-neutral-400">最后更新时间：2024年12月</p>
+        `
+      },
+      rights: {
+        title: '客户权益',
+        content: `
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">一、知情权</h2>
+          <p class="mb-4">您有权了解：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>设计方案的具体内容和实施细节</li>
+            <li>使用的材料品牌、规格和价格</li>
+            <li>施工进度和完成时间</li>
+            <li>费用构成和支付方式</li>
+            <li>项目进度和最新情况</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">二、选择权</h2>
+          <p class="mb-4">您有权选择：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>设计方案和风格方向</li>
+            <li>材料品牌和规格（在预算范围内）</li>
+            <li>施工时间和进度安排</li>
+            <li>是否接受设计变更建议</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">三、监督权</h2>
+          <p class="mb-4">您有权监督：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>施工质量和进度</li>
+            <li>材料使用情况</li>
+            <li>施工人员的工作规范</li>
+            <li>施工现场的安全和卫生</li>
+            <li>通过项目跟踪系统实时查看项目进展</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">四、验收权</h2>
+          <p class="mb-4">您有权进行验收：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>每个施工阶段完成后进行验收</li>
+            <li>对不符合要求的部分提出整改意见</li>
+            <li>竣工验收时进行全面检查</li>
+            <li>验收合格后方可进行下一阶段或交付</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">五、质保权益</h2>
+          <p class="mb-4">质保服务：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>结构性问题提供2年质保</li>
+            <li>质保期内免费维修（非人为损坏）</li>
+            <li>24小时内响应质保需求</li>
+            <li>提供质保服务记录和凭证</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">六、隐私保护权</h2>
+          <p class="mb-4">您的隐私受到保护：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>个人信息严格保密，不向第三方泄露</li>
+            <li>项目信息仅对您本人开放</li>
+            <li>未经同意，不会使用项目照片进行宣传</li>
+            <li>如需使用，会提前征得您的同意</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">七、投诉与建议权</h2>
+          <p class="mb-4">您有权提出：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>对服务质量提出意见和建议</li>
+            <li>对施工问题提出投诉</li>
+            <li>要求及时处理和反馈</li>
+            <li>通过评价系统分享您的体验</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">八、合同权益</h2>
+          <p class="mb-4">合同保障：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>签订正式设计施工合同</li>
+            <li>合同条款清晰明确，双方权利义务对等</li>
+            <li>合同变更需双方书面确认</li>
+            <li>按合同约定履行义务，保障您的权益</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">九、服务保障</h2>
+          <p class="mb-4">我们承诺：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>提供专业、优质的设计和施工服务</li>
+            <li>及时响应您的需求和问题</li>
+            <li>保持透明沟通，及时反馈项目进展</li>
+            <li>尊重您的选择和建议</li>
+            <li>持续改进服务质量</li>
+          </ul>
+
+          <h2 class="text-2xl font-semibold text-white mb-4 mt-8">十、联系方式</h2>
+          <p class="mb-4">如有任何权益相关问题，请及时联系我们：</p>
+          <ul class="list-disc list-inside space-y-2 mb-4 ml-4">
+            <li>电话：177-7229-7239</li>
+            <li>邮箱：1810266895@qq.com</li>
+            <li>地址：新和县迎宾花园小区</li>
+          </ul>
+
+          <p class="mt-8 text-sm text-neutral-400">最后更新时间：2024年12月</p>
+        `
+      }
+    }
+
+    // 加载对应内容
+    const content = termsContent[type] || termsContent.user
+    document.getElementById('termsTitle').textContent = content.title
+    document.getElementById('termsContent').innerHTML = content.content
+
+    // Reveal animation
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active')
+        }
+      })
+    }, { threshold: 0.15 })
+    document.querySelectorAll('.reveal-blur').forEach(el => revealObserver.observe(el))
+  </script>
+</body>
+</html>
+

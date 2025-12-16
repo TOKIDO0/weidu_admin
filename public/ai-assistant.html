@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>维度AI助手 - 维度空间设计</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Outfit:wght@200;300;400;600&family=Syncopate:wght@400;700&display=swap');
+    :root {
+      --brand-orange: #ff4d00;
+      --deep-bg: #050505;
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--deep-bg);
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--brand-orange); }
+
+    .water-glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-top: 1px solid rgba(255, 255, 255, 0.3);
+      border-left: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 30px;
+      border-radius: 24px;
+      position: relative;
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.5),
+        inset 0 0 40px rgba(255, 255, 255, 0.02);
+    }
+
+    .service-card-border-container { 
+      position: absolute; 
+      inset: 0; 
+      border-radius: inherit; 
+      padding: 1px; 
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); 
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); 
+      -webkit-mask-composite: xor; 
+      mask-composite: exclude; 
+      pointer-events: none; 
+    }
+    .service-card-border-gradient { 
+      position: absolute; 
+      inset: -50%; 
+      background: conic-gradient(from 0deg, transparent 0%, transparent 80%, var(--brand-orange) 100%); 
+      animation: spin 4s linear infinite; 
+    }
+    @keyframes spin { 
+      from { transform: rotate(0deg); } 
+      to { transform: rotate(360deg); } 
+    }
+
+    .liquid-glass-btn {
+      position: relative;
+      overflow: hidden;
+      padding: 10px 26px;
+      border-radius: 100px;
+      background: rgb(51, 51, 51);
+      border: none;
+      box-shadow: inset 0px 0px 16px 0px rgba(242, 242, 242, 1), 
+                  inset 0px 0px 1px 1px rgba(153, 153, 153, 1), 
+                  inset 0px 0px 1px 1px rgba(255, 255, 255, 0.15), 
+                  inset -1px -1px 1px 0.5px rgba(255, 255, 255, 0.75), 
+                  inset 1px 1px 1px 0.5px rgba(255, 255, 255, 0.75), 
+                  inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.8), 
+                  inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.75), 
+                  0px 1px 8px 0px rgba(0, 0, 0, 0.1), 
+                  0px 0px 2px 0px rgba(0, 0, 0, 0.1);
+      background-image: linear-gradient(90deg, rgba(255, 255, 255, 1) 44%, rgba(0, 0, 0, 1) 83%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      font-family: 'SF Pro', 'Inter', sans-serif;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      text-align: center;
+      letter-spacing: 4px;
+    }
+    .liquid-glass-btn:hover {
+      opacity: 0.87;
+      transform: translateY(-1px);
+    }
+    .liquid-glass-btn:active {
+      transform: scale(0.95);
+    }
+
+    .reveal-blur {
+      opacity: 0; filter: blur(20px); transform: translateY(40px);
+      transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform, opacity, filter;
+    }
+    .reveal-blur.active { opacity: 1; filter: blur(0); transform: translateY(0); }
+    
+    /* 页面加载时的模糊变清晰动画 */
+    @keyframes fadeInBlur {
+      0% {
+        opacity: 0;
+        filter: blur(20px);
+        transform: translateY(30px);
+      }
+      100% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0);
+      }
+    }
+    
+    .page-content {
+      animation: fadeInBlur 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .glass-input {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      padding: 14px 20px;
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.3s;
+      width: 100%;
+    }
+    .glass-input:focus {
+      border-color: var(--brand-orange);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .glass-input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .message-bubble {
+      max-width: 80%;
+      padding: 16px 20px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      word-wrap: break-word;
+    }
+    .message-user {
+      background: linear-gradient(135deg, rgba(255, 77, 0, 0.2), rgba(255, 77, 0, 0.1));
+      border: 1px solid rgba(255, 77, 0, 0.3);
+      margin-left: auto;
+      text-align: right;
+    }
+    .message-assistant {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-neutral-200 antialiased selection:bg-orange-500 selection:text-white">
+
+<!-- Background (component) added by Aura -->
+<div class="aura-background-component fixed top-0 w-full h-screen -z-10" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent)"><div data-us-project="tCcBHRpF4pd3u3hQXCm5" class="absolute w-full h-full left-0 top-0 -z-10"></div>
+<script type="text/javascript">
+  !function(){if(!window.UnicornStudio){window.UnicornStudio={isInitialized:!1};var i=document.createElement("script");i.src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.34/dist/unicornStudio.umd.js",i.onload=function(){window.UnicornStudio.isInitialized||(UnicornStudio.init(),window.UnicornStudio.isInitialized=!0)},(document.head || document.body).appendChild(i)}}();
+</script></div>
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-neutral-950/70 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <a href="index.html" class="flex items-center -ml-4">
+        <img src="https://dl2.img.timecdn.cn/2025/12/10/LOGO.png" alt="WeiDU LOGO" class="h-8 w-auto">
+      </a>
+      <div class="hidden md:flex items-center space-x-8 text-xs font-['Syncopate'] uppercase tracking-widest text-neutral-400">
+        <a href="index.html" class="hover:text-white transition-colors duration-300">首页</a>
+        <a href="index.html#work" class="hover:text-white transition-colors duration-300">作品案例</a>
+        <a href="index.html#philosophy" class="hover:text-white transition-colors duration-300">设计理念</a>
+        <a href="index.html#testimonials" class="hover:text-white transition-colors duration-300">客户评价</a>
+        <a href="project-track.html" class="hover:text-white transition-colors duration-300">项目跟踪</a>
+        <a href="index.html#contact" class="hover:text-white transition-colors duration-300">联系我们</a>
+      </div>
+      <a href="index.html#contact" class="group relative inline-flex h-9 items-center justify-center overflow-hidden rounded-full p-[1px]">
+        <span class="absolute inset-[-1000%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#171717_0%,#ff4d00_50%,#171717_100%)]"></span>
+        <span class="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-neutral-950 px-5 text-xs font-medium text-neutral-300 backdrop-blur-3xl transition-colors group-hover:text-white">
+          <iconify-icon icon="solar:phone-linear" width="16" class="mr-2"></iconify-icon> 预约咨询
+        </span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="min-h-screen pt-24 pb-12 px-4">
+    <div class="max-w-4xl mx-auto">
+      <div class="water-glass-card page-content mb-6">
+        <div class="mb-6">
+          <a href="index.html" class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-neutral-900/50 border border-white/10 hover:bg-neutral-800 hover:border-orange-500/50 transition-all text-neutral-400 hover:text-white mb-4">
+            <iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
+          </a>
+          <div class="flex items-center gap-4 mb-2">
+            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+              <iconify-icon icon="solar:chat-round-dots-bold" width="32" class="text-white"></iconify-icon>
+            </div>
+            <div>
+              <h1 class="text-3xl md:text-4xl font-medium text-white tracking-tight font-serif">维度AI助手</h1>
+              <p class="text-neutral-400 text-sm mt-1">智能回答您的问题</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Container -->
+      <div class="water-glass-card page-content" style="min-height: 500px; max-height: calc(100vh - 300px); display: flex; flex-direction: column; animation-delay: 0.2s;">
+        <div id="chatMessages" class="flex-1 overflow-y-auto mb-4 space-y-4" style="max-height: calc(100vh - 400px);">
+          <div class="text-center py-12">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+              <iconify-icon icon="solar:chat-round-dots-bold" width="40" class="text-white"></iconify-icon>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">欢迎使用维度AI助手</h3>
+            <p class="text-neutral-400 text-sm max-w-md mx-auto">
+              我可以回答关于公司服务、设计理念、装修流程等问题。试试问我：
+            </p>
+            <div class="mt-4 space-y-2 text-sm text-neutral-500">
+              <p>"你们提供哪些设计服务？"</p>
+              <p>"装修流程是怎样的？"</p>
+              <p>"如何查看项目进度？"</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-white/10 pt-4">
+          <div class="flex gap-3">
+            <input
+              type="text"
+              id="chatInput"
+              placeholder="输入您的问题..."
+              class="glass-input flex-1"
+              onkeypress="if(event.key === 'Enter') sendMessage()"
+            />
+            <button
+              onclick="sendMessage()"
+              id="sendBtn"
+              class="liquid-glass-btn px-6 py-3"
+              style="width: auto;"
+            >
+              发送
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://aitxgwfqtcrxxcglwmrq.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpdHhnd2ZxdGNyeHhjZ2x3bXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc1NTQsImV4cCI6MjA4MTIyMzU1NH0.OLDft-LmrRZEGEUEzJ9srevbnI68vV9jWf4Ym05lkAw'
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    // 使用 API 路由来保护 API Key
+    // 如果前台和后台在同一域名，使用相对路径；否则需要配置后台API的完整URL
+    const GEMINI_API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+      ? 'http://localhost:3000/api/chat'  // 本地开发
+      : window.location.origin + '/api/chat'  // 生产环境
+
+    let messages = []
+
+    // Reveal animation
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active')
+        }
+      })
+    }, { threshold: 0.15 })
+    document.querySelectorAll('.reveal-blur').forEach(el => revealObserver.observe(el))
+
+    async function fetchPublicData() {
+      try {
+        // 只获取公开信息，不包含敏感数据
+        const { data: projects } = await supabase
+          .from('projects')
+          .select('title, category, location, description')
+          .eq('published', true)
+          .limit(10)
+
+        const { data: reviews } = await supabase
+          .from('reviews')
+          .select('name, project_name, rating, content')
+          .eq('approved', true)
+          .limit(10)
+
+        return {
+          projects: projects || [],
+          reviews: reviews || []
+        }
+      } catch (error) {
+        console.error('获取数据失败:', error)
+        return { projects: [], reviews: [] }
+      }
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chatInput')
+      const message = input.value.trim()
+      if (!message) return
+
+      const sendBtn = document.getElementById('sendBtn')
+      const chatMessages = document.getElementById('chatMessages')
+
+      // 清空欢迎消息
+      if (chatMessages.querySelector('.text-center')) {
+        chatMessages.innerHTML = ''
+      }
+
+      // 添加用户消息
+      const userMsg = document.createElement('div')
+      userMsg.className = 'message-bubble message-user'
+      userMsg.textContent = message
+      chatMessages.appendChild(userMsg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+
+      // 清空输入框
+      input.value = ''
+      input.disabled = true
+      sendBtn.disabled = true
+      sendBtn.textContent = '思考中...'
+
+      // 添加加载动画
+      const loadingMsg = document.createElement('div')
+      loadingMsg.className = 'message-bubble message-assistant'
+      loadingMsg.innerHTML = '<div class="flex gap-2"><div class="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"></div><div class="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div><div class="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div></div>'
+      chatMessages.appendChild(loadingMsg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+
+      try {
+        // 获取公开数据
+        const publicData = await fetchPublicData()
+
+        // 通过 API 路由调用智谱API（保护 API Key，流式响应）
+        const response = await fetch(GEMINI_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: message,
+            contextData: publicData
+          }),
+        })
+
+        // 先检查响应状态
+        if (!response.ok) {
+          let errorMessage = `API 请求失败: ${response.status}`
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorMessage
+          } catch (e) {
+            // 如果无法解析错误响应，使用状态码
+            errorMessage = `API 请求失败: ${response.status} ${response.statusText}`
+          }
+          console.error('API 请求失败:', response.status, errorMessage)
+          throw new Error(errorMessage)
+        }
+
+        // 移除加载消息
+        loadingMsg.remove()
+
+        // 创建助手回复消息容器
+        const assistantMsg = document.createElement('div')
+        assistantMsg.className = 'message-bubble message-assistant'
+        chatMessages.appendChild(assistantMsg)
+        chatMessages.scrollTop = chatMessages.scrollHeight
+
+        // 检查响应类型
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('text/event-stream')) {
+          // 处理流式响应
+          const reader = response.body.getReader()
+          const decoder = new TextDecoder()
+          let fullText = ''
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const chunk = decoder.decode(value, { stream: true })
+            const lines = chunk.split('\n')
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6).trim()
+                if (data === '[DONE]' || data === '') continue
+
+                try {
+                  const json = JSON.parse(data)
+                  const content = json.content || ''
+                  if (content) {
+                    fullText += content
+                    assistantMsg.innerHTML = fullText.replace(/\n/g, '<br>')
+                    chatMessages.scrollTop = chatMessages.scrollHeight
+                  }
+                } catch (e) {
+                  // 忽略解析错误，继续处理下一行
+                  console.warn('解析流式数据失败:', e, data)
+                }
+              }
+            }
+          }
+        } else {
+          // 处理非流式响应（兼容）
+          const data = await response.json()
+          if (data.error) {
+            throw new Error(data.error)
+          }
+          const assistantText = data.message || ''
+          assistantMsg.innerHTML = assistantText.replace(/\n/g, '<br>')
+          chatMessages.scrollTop = chatMessages.scrollHeight
+        }
+
+      } catch (error) {
+        console.error('发送消息失败:', error)
+        loadingMsg.remove()
+        const errorMsg = document.createElement('div')
+        errorMsg.className = 'message-bubble message-assistant'
+        // 显示更详细的错误信息用于调试
+        const errorDetail = error instanceof Error ? error.message : String(error)
+        errorMsg.innerHTML = `抱歉，发生了错误：${errorDetail}<br>请检查网络连接或稍后重试。`
+        chatMessages.appendChild(errorMsg)
+        chatMessages.scrollTop = chatMessages.scrollHeight
+      } finally {
+        input.disabled = false
+        sendBtn.disabled = false
+        sendBtn.textContent = '发送'
+        input.focus()
+      }
+    }
+  </script>
+</body>
+</html>
+

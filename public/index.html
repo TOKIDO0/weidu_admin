@@ -1,0 +1,1677 @@
+<html lang="zh-CN" class="scroll-smooth"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeiDU | 维度空间设计</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<script src="https://api.map.baidu.com/api?v=3.0&ak=jfvWkRaS03ugguI4feuoyygvgucI3Q7Y"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"></noscript>
+<script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Fonts */
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Outfit:wght@200;300;400;600&family=Syncopate:wght@400;700&display=swap">
+:root {
+    --brand-orange: #ff4d00;
+    --deep-bg: #050505;
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+}
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--deep-bg);
+    color: #ffffff;
+    overflow-x: hidden;
+}
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand-orange); }
+
+/* --- General Animations --- */
+@keyframes icon-enter {
+    0% { opacity: 0; transform: translateY(10px) scale(0.9); filter: blur(4px); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.icon-anim { animation: icon-enter 0.8s cubic-bezier(0.25, 1, 0.5, 1) both; }
+.reveal-blur {
+    opacity: 0; filter: blur(20px); transform: translateY(40px);
+    transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform, opacity, filter;
+}
+.reveal-blur.active { opacity: 1; filter: blur(0); transform: translateY(0); }
+
+/* --- Portfolio Grid --- */
+.portfolio-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; grid-auto-rows: 300px; }
+.project-card { position: relative; overflow: hidden; border: 1px solid transparent; transition: all 0.5s var(--ease-smooth); cursor: pointer; }
+.span-8 { grid-column: span 8; }
+.span-4 { grid-column: span 4; }
+@media (max-width: 768px) {
+    .portfolio-grid { grid-template-columns: 1fr; grid-auto-rows: auto; }
+    .span-8, .span-4 { grid-column: span 1; height: 300px; }
+}
+.project-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.7s var(--ease-smooth), filter 0.8s cubic-bezier(0.4, 0, 0.2, 1); filter: grayscale(100%) contrast(1.1); }
+.project-info { position: absolute; bottom: 0; left: 0; width: 100%; padding: 30px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); transform: translateY(20px); opacity: 0; transition: all 0.5s ease; }
+.project-card { transition: all 0.5s var(--ease-smooth), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.6s ease; }
+.project-card:hover { border-color: var(--brand-orange); transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 77, 0, 0.2); }
+.project-card:hover img { transform: scale(1.05); filter: grayscale(0%) contrast(1); }
+.project-card:hover .project-info { transform: translateY(0); opacity: 1; }
+
+/* --- Portfolio Modal (Updated) --- */
+.pf-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(15px);
+    z-index: 9999; display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; transition: all 0.5s var(--ease-smooth);
+}
+.pf-modal-overlay.active { opacity: 1; visibility: visible; }
+.pf-modal-container {
+    position: relative; width: 90%; max-width: 1600px; height: 80vh;
+    display: flex; align-items: center; perspective: 1500px;
+}
+.pf-layer-image {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 75%; height: 100%;
+    background: #111; overflow: hidden; border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5); opacity: 0; transform: translateX(50px);
+    transition: all 0.8s var(--ease-spring);
+}
+.pf-modal-overlay.active .pf-layer-image { opacity: 1; transform: translateX(0); }
+.pf-slider-track { display: flex; flex-direction: column; height: 100%; width: 100%; transition: transform 0.8s cubic-bezier(0.25, 1, 0.3, 1); }
+.pf-slide-img { height: 100%; width: 100%; object-fit: cover; flex-shrink: 0; display: block; filter: brightness(0.8); }
+
+/* 3D Info Box Style */
+.pf-layer-info {
+    position: relative; z-index: 10; width: 35%; min-width: 420px;
+    background: rgba(20, 20, 20, 0.85);
+    backdrop-filter: blur(40px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.8), 
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 50px;
+    display: flex; flex-direction: column; gap: 30px;
+    height: auto; max-height: 85vh;
+    transform-style: preserve-3d;
+    transition: transform 0.1s linear; /* Smooth mouse follow */
+    opacity: 0; transform: translateX(-50px) rotateY(10deg);
+}
+.pf-modal-overlay.active .pf-layer-info {
+    opacity: 1; 
+    /* Transformation is handled by JS for tilt, initial state reset via JS */
+}
+
+/* Staggered Growth Animation Elements */
+.pf-stagger-item {
+    opacity: 0; transform: translateY(20px) scale(0.95); filter: blur(10px);
+    transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pf-modal-overlay.active .pf-stagger-item {
+    opacity: 1; transform: translateY(0) scale(1); filter: blur(0);
+}
+
+@media (max-width: 1024px) {
+    .pf-modal-container { flex-direction: column-reverse; height: 95vh; width: 95%; }
+    .pf-layer-image { width: 100%; height: 50%; position: relative; border-radius: 20px 20px 0 0; }
+    .pf-layer-info { width: 100%; height: 50%; min-width: auto; padding: 30px; border-radius: 0 0 20px 20px; overflow-y: auto; transform: none !important; }
+}
+
+.pf-title-group h2 { font-family: 'Outfit', sans-serif; font-size: 2.5rem; line-height: 1.1; font-weight: 300; color: white; margin-bottom: 10px; }
+.pf-title-group span { color: var(--brand-orange); font-family: 'Syncopate'; font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase; }
+.pf-desc { font-size: 0.95rem; line-height: 1.7; color: #aaa; font-weight: 300; }
+.pf-hud-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+.pf-hud-item { display: flex; flex-direction: column; }
+.pf-hud-item label { font-size: 0.7rem; color: #666; font-family: 'Syncopate'; margin-bottom: 6px; }
+.pf-hud-item span { font-size: 1rem; color: #fff; font-family: 'Outfit'; font-weight: 400; }
+.pf-nav-group { position: absolute; bottom: 30px; right: 30px; display: flex; gap: 10px; z-index: 20; }
+.pf-nav-btn { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); color: white; cursor: pointer; transition: all 0.2s; }
+.pf-nav-btn:hover { background: var(--brand-orange); border-color: var(--brand-orange); }
+.pf-close-float { 
+    position: absolute; 
+    top: 20px; 
+    right: 20px; 
+    z-index: 50; 
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    background: rgba(255,255,255,0.1); 
+    color: white; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    transition: all 0.3s; 
+    border: 1px solid rgba(255,255,255,0.2);
+    overflow: hidden;
+}
+.pf-close-float::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transition: left 0.6s ease;
+}
+.pf-close-float:hover::before {
+    left: 100%;
+}
+.pf-close-float:hover { 
+    background: rgba(255,255,255,0.2); 
+    color: #fff; 
+    transform: rotate(90deg);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+.pf-action-btn {
+    padding: 14px 21px; 
+    background: rgb(51, 51, 51); 
+    border-radius: 100px; 
+    border: none;
+    background-image: linear-gradient(90deg, rgba(255, 255, 255, 1) 59%, rgba(0, 0, 0, 1) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent; 
+    font-family: 'SF Pro', 'Inter', sans-serif; 
+    font-size: 17px; 
+    font-weight: 600;
+    cursor: pointer; 
+    transition: all 0.2s ease-in-out;
+    text-align: center; 
+    width: 100%; 
+    box-shadow: inset 0px 0px 16px 0px rgb(242, 242, 242), 
+                inset 0px 0px 1px 1px rgb(153, 153, 153), 
+                inset 0px 0px 1px 1px rgba(255, 255, 255, 0.15), 
+                inset -1px -1px 1px 0.5px rgba(255, 255, 255, 0.75), 
+                inset 1px 1px 1px 0.5px rgba(255, 255, 255, 0.75), 
+                inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.8), 
+                inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.75), 
+                0px 1px 8px 0px rgba(0, 0, 0, 0.1), 
+                0px 0px 2px 0px rgba(0, 0, 0, 0.1);
+}
+.pf-action-btn:hover { opacity: 0.87; transform: translateY(-1px); }
+.pf-action-btn:active { transform: scale(0.95); }
+
+/* --- Scratch Cursor & Particles --- */
+.scratch-cursor { cursor: crosshair; }
+
+/* --- Marquee --- */
+.marquee-wrapper { mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); overflow: hidden; width: 100%; display: flex; }
+.marquee-track { display: flex; gap: 32px; width: max-content; animation: scroll 60s linear infinite; padding: 20px 0; }
+.marquee-track:hover { animation-play-state: paused; }
+@keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+/* --- Water Glass Card (Services) --- */
+.water-glass-card {
+    background: rgba(255, 255, 255, 0.03); /* More transparent */
+    backdrop-filter: blur(24px); /* Higher blur */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-top: 1px solid rgba(255, 255, 255, 0.3); /* Top highlight */
+    border-left: 1px solid rgba(255, 255, 255, 0.3); /* Left highlight */
+    padding: 30px; border-radius: 24px;
+    transform-style: preserve-3d; transition: transform 0.1s linear;
+    flex-shrink: 0; width: 100%; position: relative;
+    box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.5),
+        inset 0 0 40px rgba(255, 255, 255, 0.02);
+}
+
+/* Service Card Border Particle */
+.service-card-border-container { position: absolute; inset: 0; border-radius: inherit; padding: 1px; mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
+.service-card-border-gradient { position: absolute; inset: -50%; background: conic-gradient(from 0deg, transparent 0%, transparent 80%, var(--brand-orange) 100%); animation: spin 4s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* --- Liquid Glass Button (Figma Style) --- */
+.liquid-glass-btn {
+    position: relative; overflow: hidden;
+    padding: 10px 26px; border-radius: 100px;
+    background: rgb(51, 51, 51);
+    border: none;
+    box-shadow: inset 0px 0px 16px 0px rgba(242, 242, 242, 1), 
+                inset 0px 0px 1px 1px rgba(153, 153, 153, 1), 
+                inset 0px 0px 1px 1px rgba(255, 255, 255, 0.15), 
+                inset -1px -1px 1px 0.5px rgba(255, 255, 255, 0.75), 
+                inset 1px 1px 1px 0.5px rgba(255, 255, 255, 0.75), 
+                inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.8), 
+                inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.75), 
+                0px 1px 8px 0px rgba(0, 0, 0, 0.1), 
+                0px 0px 2px 0px rgba(0, 0, 0, 0.1);
+    background-image: linear-gradient(90deg, rgba(255, 255, 255, 1) 42%, rgba(0, 0, 0, 1) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    font-family: 'Segoe UI Symbol', 'SF Pro', 'Inter', sans-serif; 
+    font-size: 17px; 
+    font-weight: 700;
+    line-height: 39px;
+    letter-spacing: 1px;
+    transition: all 0.2s ease-in-out; cursor: pointer; text-transform: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0px;
+}
+.liquid-glass-btn:hover { 
+    opacity: 0.86; 
+    transform: translateY(-1px);
+}
+.liquid-glass-btn:active { 
+    transform: scale(0.95); 
+}
+.liquid-flow { display: none; }
+
+/* --- Project Track Button (Water Glass with Light Flow) --- */
+.project-track-btn {
+    position: relative;
+    overflow: hidden;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+.project-track-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+.project-track-btn:hover::before {
+    left: 100%;
+}
+.project-track-btn:hover {
+    border-color: rgba(255, 77, 0, 0.5);
+    background: rgba(255, 77, 0, 0.1);
+    box-shadow: 0 0 20px rgba(255, 77, 0, 0.3);
+}
+
+/* 固定尺寸版本（用于“写下您的评价”等小按钮） */
+.liquid-glass-btn.lg-fixed {
+    width: 192px;
+    height: 45px;
+}
+
+/* 表单全宽按钮（宽度交给 Tailwind 的 w-full 控制；渐变/字距按具体按钮单独设置） */
+
+/* --- Toast Bubble --- */
+.toast-bubble {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(10px);
+    z-index: 11000;
+    background: rgba(20, 20, 20, 0.75);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+    border-radius: 999px;
+    padding: 12px 18px;
+    color: rgba(255,255,255,0.92);
+    font-size: 13px;
+    line-height: 18px;
+    letter-spacing: 0.08em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms var(--ease-smooth), transform 220ms var(--ease-smooth);
+    max-width: min(92vw, 760px);
+    text-align: center;
+    white-space: nowrap;
+}
+.toast-bubble.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* --- Review Stars --- */
+.review-stars { display: flex; gap: 10px; align-items: center; }
+.review-star {
+    color: rgb(82, 82, 82);
+    cursor: pointer;
+    transition: transform 180ms var(--ease-smooth), filter 180ms var(--ease-smooth), color 180ms var(--ease-smooth);
+}
+.review-star:hover {
+    transform: translateY(-2px) scale(1.08);
+    filter: drop-shadow(0 0 10px rgba(255, 77, 0, 0.35));
+}
+.review-star.on { color: var(--brand-orange); }
+
+/* --- Appointment Expand/Collapse --- */
+.appointment-anim {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(-8px);
+    transition:
+        max-height 420ms var(--ease-spring),
+        opacity 260ms var(--ease-smooth),
+        filter 260ms var(--ease-smooth),
+        transform 420ms var(--ease-spring);
+    will-change: max-height, opacity, filter, transform;
+}
+.appointment-anim.is-open {
+    max-height: 140px;
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+}
+
+/* --- Review Modal --- */
+.review-modal-content {
+    background: rgba(30, 30, 30, 0.7); backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 40px; padding: 40px; width: 500px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+.review-input {
+    width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 15px; color: white; outline: none; transition: all 0.3s;
+    font-family: 'Inter'; font-size: 0.9rem;
+}
+.review-input:focus { border-color: var(--brand-orange); background: rgba(0,0,0,0.5); }
+
+/* --- Flatpickr Custom Styles --- */
+.flatpickr-calendar {
+    background: rgba(20, 20, 20, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8) !important;
+}
+.flatpickr-day {
+    color: #fff !important;
+    border-radius: 8px !important;
+}
+.flatpickr-day:hover {
+    background: rgba(255, 77, 0, 0.3) !important;
+}
+.flatpickr-day.selected {
+    background: var(--brand-orange) !important;
+    border-color: var(--brand-orange) !important;
+}
+.flatpickr-current-month {
+    color: #fff !important;
+}
+.flatpickr-weekday {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+.flatpickr-time input {
+    background: rgba(0, 0, 0, 0.3) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* --- Project Reference Box (类似 Cursor 引用框) --- */
+.project-reference-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 77, 0, 0.15);
+    border: 1px solid rgba(255, 77, 0, 0.4);
+    border-left: 3px solid var(--brand-orange);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 4px 0;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+    position: relative;
+    user-select: none;
+    cursor: default;
+}
+.project-reference-box .ref-content {
+    flex: 1;
+    min-width: 0;
+}
+.project-reference-box .ref-label {
+    font-weight: 600;
+    color: var(--brand-orange);
+    margin-right: 6px;
+}
+.project-reference-box .ref-close {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.project-reference-box .ref-close:hover {
+    background: rgba(255, 77, 0, 0.3);
+    color: rgba(255, 255, 255, 1);
+}
+.project-reference-box .ref-id {
+    font-family: 'Courier New', monospace;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+</style>
+</head>
+
+<body class="bg-neutral-950 text-neutral-200 antialiased selection:bg-orange-500 selection:text-white">
+
+<!-- Background (component) added by Aura -->
+<div class="aura-background-component fixed top-0 w-full h-screen -z-10" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent)"><div data-us-project="tCcBHRpF4pd3u3hQXCm5" class="absolute w-full h-full left-0 top-0 -z-10"></div>
+<script type="text/javascript">
+  !function(){if(!window.UnicornStudio){window.UnicornStudio={isInitialized:!1};var i=document.createElement("script");i.src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.34/dist/unicornStudio.umd.js",i.onload=function(){window.UnicornStudio.isInitialized||(UnicornStudio.init(),window.UnicornStudio.isInitialized=!0)},(document.head || document.body).appendChild(i)}}();
+</script></div>
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-neutral-950/70 backdrop-blur-xl">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <a href="#" class="flex items-center" style="margin-left: -40px;">
+                <img src="https://dl2.img.timecdn.cn/2025/12/10/LOGO.png" alt="WeiDU LOGO" class="h-8 w-auto">
+            </a>
+            <div class="hidden md:flex items-center space-x-8 text-xs font-['Syncopate'] uppercase tracking-widest text-neutral-400">
+                <a href="index.html" class="hover:text-white transition-colors duration-300">首页</a>
+                <a href="#work" class="hover:text-white transition-colors duration-300">作品案例</a>
+                <a href="#philosophy" class="hover:text-white transition-colors duration-300">设计理念</a>
+                <a href="#testimonials" class="hover:text-white transition-colors duration-300">客户评价</a>
+                <a href="project-track.html" class="hover:text-white transition-colors duration-300">项目跟踪</a>
+                <a href="#contact" class="hover:text-white transition-colors duration-300">联系我们</a>
+            </div>
+            <a href="#contact" class="group relative inline-flex h-9 items-center justify-center overflow-hidden rounded-full p-[1px]" style="margin-right: -20px;">
+                <span class="absolute inset-[-1000%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#171717_0%,#ff4d00_50%,#171717_100%)]"></span>
+                <span class="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-neutral-950 px-5 text-xs font-medium text-neutral-300 backdrop-blur-3xl transition-colors group-hover:text-white">
+                    <iconify-icon icon="solar:phone-linear" width="16" class="mr-2"></iconify-icon> 预约咨询
+                </span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="flex min-h-screen flex-col overflow-hidden pt-20 relative items-center justify-center">
+        <!-- Hero Particles Removed -->
+        <div class="text-center max-w-5xl z-20 mr-auto ml-auto pr-6 pl-6 relative reveal-blur">
+            <h1 class="md:text-7xl lg:text-8xl text-5xl font-medium text-white tracking-tight font-serif mb-8">
+                重塑您的空间幻想
+            </h1>
+            <p class="leading-relaxed text-lg font-light text-zinc-400 max-w-2xl mr-auto mb-10 ml-auto">
+                维度空间室内设计工作室。专注于高品质私宅定制与商业空间策划，让每一寸空间都诉说您的故事。
+            </p>
+            <button onclick="document.getElementById('work').scrollIntoView()" class="group relative inline-flex h-12 items-center justify-center overflow-hidden rounded-full p-[1px] shadow-[0_0_20px_-5px_rgba(255,77,0,0.4)] transition-shadow duration-300 hover:shadow-[0_0_25px_-5px_rgba(255,77,0,0.6)]">
+                <span class="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#000000_0%,#ff4d00_50%,#000000_100%)]"></span>
+                <span class="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-neutral-950 px-8 text-sm font-medium text-white backdrop-blur-3xl transition-all group-hover:bg-neutral-900">
+                    探索作品集 <iconify-icon icon="solar:arrow-right-linear" class="ml-2 text-lg text-orange-500 icon-anim"></iconify-icon>
+                </span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Stats Section -->
+    <section class="border-y bg-neutral-950/50 border-white/5 pt-12 pb-12 backdrop-blur-sm reveal-blur" id="stats-section">
+        <div class="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
+            <div class="text-center md:text-left"><h3 class="text-3xl font-semibold tracking-tight text-white flex items-center justify-center md:justify-start"><span class="stat-counter" data-target="8">0</span>+</h3><p class="mt-1 text-xs uppercase tracking-widest text-neutral-500">年设计经验</p></div>
+            <div class="text-center md:text-left"><h3 class="text-3xl font-semibold tracking-tight text-white flex items-center justify-center md:justify-start"><span class="stat-counter" data-target="150">0</span>+</h3><p class="mt-1 text-xs uppercase tracking-widest text-neutral-500">完美交付</p></div>
+            <div class="text-center md:text-left"><h3 class="text-3xl font-semibold tracking-tight text-white flex items-center justify-center md:justify-start"><span class="stat-counter" data-target="98">0</span>%</h3><p class="mt-1 text-xs uppercase tracking-widest text-neutral-500">客户满意度</p></div>
+            <div class="text-center md:text-left"><h3 class="text-3xl font-semibold tracking-tight text-white flex items-center justify-center md:justify-start"><span class="stat-counter" data-target="1">0</span>:1</h3><p class="mt-1 text-xs uppercase tracking-widest text-neutral-500">实景还原</p></div>
+        </div>
+    </section>
+
+    <!-- Philosophy & Scratch Reveal -->
+    <section id="philosophy" class="md:py-32 pt-24 pb-24 relative reveal-blur">
+        <div class="mx-auto max-w-7xl px-6">
+            <div class="grid gap-16 md:grid-cols-2 md:items-center">
+                <div class="relative">
+                    <div class="absolute -left-4 -top-4 h-24 w-24 rounded-full border border-orange-500/20 bg-transparent blur-sm"></div>
+                    <h2 class="relative text-3xl font-medium tracking-tight text-white md:text-4xl">装修不只是堆砌，<br>而是<span class="text-orange-500">生活方式</span>的重塑。</h2>
+                    <p class="mt-6 text-neutral-400 font-light leading-relaxed">在 WeiDU，我们拒绝千篇一律的样板间。我们倾听您的居住习惯，通过合理的动线规划与材质搭配，将毛坯变为理想家。</p>
+                    <div class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <!-- Added Blur Effect to Cards -->
+                        <div class="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-4 transition-colors hover:border-orange-500/30 hover:bg-white/[0.05]">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-900/50 text-orange-500">
+                                <iconify-icon icon="solar:ruler-pen-linear" width="20" class="icon-anim" style="animation-delay: 0.2s"></iconify-icon>
+                            </div>
+                            <div><h4 class="text-sm font-medium text-white">精准施工</h4><p class="mt-1 text-xs text-neutral-500">严格把控每一道工序标准。</p></div>
+                        </div>
+                        <div class="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-4 transition-colors hover:border-orange-500/30 hover:bg-white/[0.05]">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-900/50 text-orange-500">
+                                <iconify-icon icon="solar:sofa-linear" width="20" class="icon-anim" style="animation-delay: 0.4s"></iconify-icon>
+                            </div>
+                            <div class=""><h4 class="text-sm font-medium text-white">软装搭配</h4><p class="mt-1 text-xs text-neutral-500">整体色彩与家具选型建议。</p></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scratch Container -->
+                <div class="relative aspect-square md:aspect-[4/5] overflow-hidden rounded-2xl bg-neutral-900 select-none touch-none shadow-2xl" id="scratch-container">
+                    <!-- Bottom Image (Reveal/New) - dl3 -->
+                    <img src="https://dl3.img.timecdn.cn/2025/12/10/_clear_compress.jpg" class="absolute inset-0 h-full w-full object-cover" alt="After Renovation">
+                    <!-- Canvas (Top Layer/Old) - Will be drawn via JS using dl2 -->
+                    <canvas id="scratch-canvas" class="absolute inset-0 h-full w-full object-cover z-10 scratch-cursor" width="584" height="730"></canvas>
+                    
+                    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none z-20 flex flex-col items-center gap-2 opacity-70">
+                        <iconify-icon icon="solar:hand-shake-linear" class="text-white text-xl animate-pulse"></iconify-icon>
+                        <span class="text-[10px] uppercase tracking-widest text-white shadow-black drop-shadow-md">擦除旧貌 预见新家</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PORTFOLIO SECTION -->
+    <section class="relative z-10 py-32 container mx-auto px-6 reveal-blur" id="work">
+        <div class="flex flex-col md:flex-row justify-between items-end mb-16 border-b border-white/10 pb-8">
+            <div>
+                <span class="text-[#ff4d00] font-['Syncopate'] text-xs tracking-[0.2em] block mb-2">SELECTED WORKS</span>
+                <h2 class="text-5xl font-light tracking-tight text-white">空间案例</h2>
+            </div>
+            <p class="text-gray-500 text-sm max-w-md text-right mt-6 md:mt-0 leading-relaxed">
+                穿越物理与数字的边界。<br>探索那些重新定义居住体验的空间实验。
+            </p>
+        </div>
+
+        <div class="portfolio-grid" id="portfolioGrid"></div>
+
+        <div class="mt-16 text-center">
+            <a href="projects.html" class="inline-block border border-white/20 text-white px-8 py-3 text-xs uppercase font-['Syncopate'] hover:border-[#ff4d00] hover:text-[#ff4d00] transition-colors rounded-full">
+                查看更多作品 <iconify-icon icon="solar:arrow-right-linear" class="inline ml-1"></iconify-icon>
+            </a>
+        </div>
+    </section>
+
+    <!-- TESTIMONIALS SECTION -->
+    <section id="testimonials" class="py-24 relative overflow-hidden reveal-blur">
+        <div class="w-full relative z-10">
+            <div class="text-center mb-16 px-6">
+                <span class="text-[#ff4d00] font-['Syncopate'] text-xs tracking-[0.2em] uppercase">Testimonials</span>
+                <h2 class="text-4xl md:text-5xl font-light mt-4 text-white">客户评价</h2>
+            </div>
+
+            <div class="marquee-wrapper">
+                <div class="marquee-track" id="reviewTrack">
+                    <!-- Cards will be injected here by JavaScript -->
+                </div>
+            </div>
+
+            <!-- New Review Button -->
+            <div class="flex justify-center mt-12">
+                <button class="liquid-glass-btn lg-fixed" onclick="openReviewModal()">
+                    <iconify-icon icon="solar:pen-new-square-linear" width="20"></iconify-icon> 写下您的评价
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section (Water Glass) -->
+    <section class="overflow-hidden bg-neutral-950 pt-12 pb-24 relative reveal-blur" id="services">
+        <div class="relative mx-auto max-w-7xl px-6 perspective-container">
+            <div class="text-center mb-16"><h2 class="text-3xl font-medium tracking-tight text-white md:text-5xl">定制服务</h2></div>
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-6">
+                <!-- Water Glass Card 1 -->
+                <div class="water-glass-card group" onmousemove="handleTilt(event, this)" onmouseleave="resetTilt(this)">
+                    <div class="service-card-border-container"><div class="service-card-border-gradient"></div></div>
+                    <div class="relative h-full z-10">
+                        <div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500">
+                            <iconify-icon icon="solar:home-smile-linear" width="24" class="icon-anim"></iconify-icon>
+                        </div>
+                        <h3 class="mb-3 text-lg font-medium text-white">私宅全案设计</h3>
+                        <p class="text-sm leading-relaxed text-neutral-400">从毛坯到入住的一站式托管，包含硬装施工与主材选购。</p>
+                    </div>
+                </div>
+                <!-- Water Glass Card 2 -->
+                <div class="water-glass-card group" onmousemove="handleTilt(event, this)" onmouseleave="resetTilt(this)">
+                    <div class="service-card-border-container"><div class="service-card-border-gradient" style="animation-delay: -1s;"></div></div>
+                    <div class="relative h-full z-10">
+                        <div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
+                            <iconify-icon icon="solar:shop-2-linear" width="24" class="icon-anim"></iconify-icon>
+                        </div>
+                        <h3 class="mb-3 text-lg font-medium text-white">商业空间策划</h3>
+                        <p class="text-sm leading-relaxed text-neutral-400">店铺、展厅、办公空间设计，用空间语言传递品牌价值。</p>
+                    </div>
+                </div>
+                <!-- Water Glass Card 3 - 项目进度追踪 -->
+                <div class="water-glass-card group" onmousemove="handleTilt(event, this)" onmouseleave="resetTilt(this)">
+                    <div class="service-card-border-container"><div class="service-card-border-gradient" style="animation-delay: -2s;"></div></div>
+                    <div class="relative h-full z-10 flex flex-col">
+                        <div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10 text-green-400">
+                            <iconify-icon icon="solar:chart-2-linear" width="24" class="icon-anim"></iconify-icon>
+                        </div>
+                        <h3 class="mb-3 text-lg font-medium text-white">项目进度追踪</h3>
+                        <p class="text-sm leading-relaxed text-neutral-400 mb-4 flex-1">客户可以随时查看自己的项目进展，对项目了如指掌。</p>
+                        <a href="project-track.html" class="project-track-btn inline-flex items-center justify-center mt-auto" style="width: auto; padding: 8px 16px; font-size: 13px; letter-spacing: 1px; height: 36px;">
+                            查看进度 <iconify-icon icon="solar:arrow-right-linear" width="14" class="ml-2"></iconify-icon>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- NEW CONTACT SECTION -->
+    <section class="py-24 relative reveal-blur" id="contact">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-5xl font-medium text-white tracking-tight">准备好启动您的<span class="text-orange-500">空间变革</span>了吗？</h2>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-stretch">
+                <!-- LEFT: Map & Info -->
+                <div class="flex flex-col gap-6">
+                    <div class="w-full h-64 bg-neutral-900 rounded-3xl border border-white/10 flex items-center justify-center relative overflow-hidden group">
+                        <!-- Baidu Map Container -->
+                        <div id="baiduMap" class="absolute inset-0 w-full h-full"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"></div>
+                        <div class="absolute bottom-4 left-6 text-white text-xs font-light">新和县迎宾花园小区</div>
+                    </div>
+                    <div class="bg-neutral-900/50 border border-white/10 rounded-3xl p-8 flex flex-col justify-center space-y-6" style="height: 270px;">
+                        <div class="flex items-center gap-4 group">
+                            <div class="h-10 w-10 rounded-full bg-neutral-800 flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors"><iconify-icon icon="solar:phone-calling-linear" width="20"></iconify-icon></div>
+                            <div class=""><p class="text-xs text-neutral-500 uppercase tracking-wider">联系电话</p><p class="text-white font-medium">177-7229-7239</p></div>
+                        </div>
+                        <div class="flex items-center gap-4 group">
+                            <div class="h-10 w-10 rounded-full bg-neutral-800 flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors"><iconify-icon icon="solar:letter-linear" width="20"></iconify-icon></div>
+                            <div class=""><p class="text-xs text-neutral-500 uppercase tracking-wider">邮箱</p><p class="text-white font-medium">1810266895@qq.com</p></div>
+                        </div>
+                        <div class="flex items-center gap-4 group relative">
+                            <div class="h-10 w-10 rounded-full bg-neutral-800 flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors"><iconify-icon icon="solar:chat-round-dots-linear" width="20"></iconify-icon></div>
+                            <div class="relative"><p class="text-xs text-neutral-500 uppercase tracking-wider">微信</p><span class="text-white font-medium cursor-pointer underline decoration-orange-500/50 hover:decoration-orange-500 transition-all peer">添加官方微信</span>
+                                <div class="absolute bottom-full left-0 mb-4 w-40 h-auto bg-white p-2 rounded-lg opacity-0 invisible peer-hover:opacity-100 peer-hover:visible transition-all duration-300 transform translate-y-2 peer-hover:translate-y-0 shadow-2xl z-50">
+                                    <div class="w-full h-auto flex items-center justify-center overflow-hidden rounded"><img src="https://dl3.img.timecdn.cn/2025/12/10/WX.jpg" alt="WX.jpg" class="w-full h-full object-contain"></div>
+                                    <div class="absolute top-full left-4 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-white"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- RIGHT: Capsule Form -->
+                <div class="bg-neutral-900/40 backdrop-blur-md rounded-[2rem] border border-white/10 p-8 sm:p-12 flex flex-col justify-center">
+                    <form onsubmit="event.preventDefault(); handleFormSubmit();" class="space-y-6">
+                        <div class=""><label class="block text-xs uppercase tracking-wider text-neutral-500 mb-2 pl-4">您的姓名</label><input type="text" id="clientName" class="w-full bg-neutral-950 border border-neutral-800 rounded-full h-14 px-6 text-white focus:outline-none focus:border-orange-500 transition-colors placeholder-neutral-700" placeholder="Type your name..." required></div>
+                        <div class=""><label class="block text-xs uppercase tracking-wider text-neutral-500 mb-2 pl-4">您的电话</label><input type="tel" id="clientPhone" class="w-full bg-neutral-950 border border-neutral-800 rounded-full h-14 px-6 text-white focus:outline-none focus:border-orange-500 transition-colors placeholder-neutral-700" placeholder="1XX-XXXX-XXXX" required></div>
+                        
+                        <!-- 联系方式选择 -->
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-neutral-500 mb-3 pl-4">联系方式</label>
+                            <div class="flex gap-3">
+                                <button type="button" onclick="toggleContactType('immediate')" id="btnImmediate" class="flex-1 h-12 bg-neutral-950 border-2 border-orange-500 rounded-full text-white text-sm font-medium transition-all hover:bg-orange-500/20">
+                                    <iconify-icon icon="solar:phone-calling-bold" class="mr-2"></iconify-icon>立即联系
+                                </button>
+                                <button type="button" onclick="toggleContactType('appointment')" id="btnAppointment" class="flex-1 h-12 bg-neutral-950 border-2 border-neutral-800 rounded-full text-neutral-400 text-sm font-medium transition-all hover:border-neutral-600">
+                                    <iconify-icon icon="solar:calendar-mark-linear" class="mr-2"></iconify-icon>预约时间
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 预约日期时间选择器 (默认隐藏) -->
+                        <div id="appointmentSection" class="hidden space-y-4 appointment-anim">
+                            <div>
+                                <label class="block text-xs uppercase tracking-wider text-neutral-500 mb-2 pl-4">预约日期与时间</label>
+                                <input type="text" id="appointmentDateTime" class="w-full bg-neutral-950 border border-neutral-800 rounded-full h-14 px-6 text-white focus:outline-none focus:border-orange-500 transition-colors placeholder-neutral-700" placeholder="选择日期和时间..." readonly>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-neutral-500 mb-2 pl-4">您的需求</label>
+                            <div class="relative">
+                                <textarea id="clientMessage" class="w-full bg-neutral-950 border border-neutral-800 rounded-3xl p-6 text-white focus:outline-none focus:border-orange-500 transition-colors placeholder-neutral-700 resize-none h-32" placeholder="简单描述您的装修需求..." required></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full h-14 bg-white text-black font-medium rounded-full hover:bg-orange-500 hover:text-white transition-all duration-300 flex items-center justify-center liquid-glass-btn" style="background: rgb(51, 51, 51); background-image: linear-gradient(90deg, rgba(255, 255, 255, 1) 44%, rgba(0, 0, 0, 1) 83%); background-clip: text; -webkit-background-clip: text; color: transparent; letter-spacing: 4px;">发送需求 <iconify-icon icon="solar:plain-3-linear" width="18"></iconify-icon></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 bg-neutral-950 py-12 text-sm reveal-blur">
+        <div class="mx-auto max-w-7xl px-6">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
+                <div class="flex items-center gap-2 font-['Syncopate']">
+                    <span class="text-orange-500 font-bold">WeiDU</span>
+                    <span class="tracking-tight text-neutral-400">DESIGN STUDIO</span>
+                </div>
+                <div class="flex items-center gap-8 text-neutral-500">
+                    <a href="#" class="hover:text-white transition-colors hover:scale-110 duration-200"><img src="https://dl2.img.timecdn.cn/2025/12/10/LOGO.png" alt="WeiDU" class="w-8 h-auto opacity-70 hover:opacity-100 transition-opacity"></a>
+                    <iconify-icon icon="simple-icons:cursor" class="hover:text-white transition-colors cursor-pointer" width="32"></iconify-icon>
+                    <iconify-icon icon="simple-icons:aseprite" class="hover:text-white transition-colors cursor-pointer" width="32"></iconify-icon>
+                    <iconify-icon icon="simple-icons:fiverr" class="hover:text-white transition-colors cursor-pointer" width="32"></iconify-icon>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-6 text-neutral-400 text-xs mb-6">
+                <a href="terms.html?type=user" class="hover:text-white transition-colors">用户须知</a>
+                <span class="text-neutral-600">|</span>
+                <a href="terms.html?type=construction" class="hover:text-white transition-colors">施工说明</a>
+                <span class="text-neutral-600">|</span>
+                <a href="terms.html?type=rights" class="hover:text-white transition-colors">客户权益</a>
+                <span class="text-neutral-600">|</span>
+                <a href="ai-assistant.html" class="hover:text-white transition-colors">帮助</a>
+            </div>
+            <div class="text-center text-neutral-600">© 2024 WeiDU Space Design. All rights reserved.</div>
+        </div>
+    </footer>
+
+    <!-- Portfolio Modal (Re-designed) -->
+    <div id="pfModal" class="pf-modal-overlay">
+        <div class="pf-modal-container">
+            <div class="pf-layer-image">
+                <div class="pf-slider-track" id="pfTrack"></div>
+                <div class="pf-nav-group">
+                    <div class="pf-nav-btn" onclick="changeSlide(-1)"><iconify-icon icon="solar:arrow-up-linear"></iconify-icon></div>
+                    <div class="pf-nav-btn" onclick="changeSlide(1)"><iconify-icon icon="solar:arrow-down-linear"></iconify-icon></div>
+                </div>
+            </div>
+            <!-- Info Layer with 3D Tilt & Staggered Content -->
+            <div class="pf-layer-info" id="pfInfoBox">
+                <button class="pf-close-float" onclick="closePfModal()" aria-label="关闭">
+                    <iconify-icon icon="solar:close-circle-linear" width="24"></iconify-icon>
+                </button>
+                <div class="pf-title-group pf-stagger-item" style="transition-delay: 0.1s">
+                    <div class="text-xs text-gray-400 mb-2 font-['Syncopate'] tracking-wider" id="pfProjectId" style="display: none;">项目ID: <span id="pfProjectIdValue"></span></div>
+                    <span id="pfCategory">RESIDENTIAL</span>
+                    <h2 id="pfTitle">Project Name</h2>
+                </div>
+                <p class="pf-desc pf-stagger-item" style="transition-delay: 0.2s" id="pfDesc">Description...</p>
+                <div class="pf-hud-bar pf-stagger-item" style="transition-delay: 0.3s">
+                    <div class="pf-hud-item"><label>工期</label><span id="pfDuration">0 Months</span></div>
+                    <div class="pf-hud-item"><label>面积</label><span id="pfArea">0 m²</span></div>
+                    <div class="pf-hud-item"><label>造价</label><span id="pfCost">¥ 0</span></div>
+                    <div class="pf-hud-item"><label>地点</label><span id="pfLoc">City</span></div>
+                </div>
+                <div style="margin-top: auto;" class="pf-stagger-item">
+                    <button class="pf-action-btn" onclick="startProjectConsultation()">启动项目咨询</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Modal (New) -->
+    <div id="reviewModal" class="fixed inset-0 z-[10000] flex items-center justify-center opacity-0 invisible transition-all duration-500 bg-black/60 backdrop-blur-sm">
+        <div class="review-modal-content transform scale-90 transition-all duration-500">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl text-white font-medium">发表评价</h3>
+                <button onclick="closeReviewModal()" class="text-neutral-500 hover:text-white transition-colors"><iconify-icon icon="solar:close-circle-linear" width="28"></iconify-icon></button>
+            </div>
+            <form class="space-y-4">
+                <input type="text" id="reviewName" class="review-input" placeholder="您的称呼">
+                <input type="text" id="reviewProject" class="review-input" placeholder="项目名称 (选填)">
+                <div class="flex gap-2 py-2 review-stars" id="reviewStars">
+                    <span class="text-xs uppercase text-neutral-500 tracking-widest mr-2 pt-1">评分</span>
+                    <iconify-icon icon="solar:star-bold" class="review-star" data-star="1"></iconify-icon>
+                    <iconify-icon icon="solar:star-bold" class="review-star" data-star="2"></iconify-icon>
+                    <iconify-icon icon="solar:star-bold" class="review-star" data-star="3"></iconify-icon>
+                    <iconify-icon icon="solar:star-bold" class="review-star" data-star="4"></iconify-icon>
+                    <iconify-icon icon="solar:star-bold" class="review-star" data-star="5"></iconify-icon>
+                </div>
+                <textarea id="reviewContent" class="review-input h-32 resize-none" placeholder="分享您的装修体验..."></textarea>
+                <button type="button" class="liquid-glass-btn w-full mt-4 justify-center" onclick="submitReview()">
+                    提交评价
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // --- Tilt Effect ---
+        function handleTilt(e, card) {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left, y = e.clientY - rect.top;
+            const rotateX = ((y - rect.height/2) / (rect.height/2)) * -5;
+            const rotateY = ((x - rect.width/2) / (rect.width/2)) * 5;
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+        }
+        function resetTilt(card) { card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)'; }
+
+        // --- Scratch Card (Updated) ---
+        const scratchCanvas = document.getElementById('scratch-canvas');
+        if (scratchCanvas) {
+            const sCtx = scratchCanvas.getContext('2d');
+            const container = document.getElementById('scratch-container');
+            const topImg = new Image();
+            topImg.crossOrigin = "Anonymous";
+            // Top Image (Old/To be scratched)
+            topImg.src = "https://dl2.img.timecdn.cn/2025/12/10/_clear_compress.jpg"; 
+            
+            topImg.onload = function() {
+                scratchCanvas.width = container.offsetWidth; scratchCanvas.height = container.offsetHeight;
+                sCtx.drawImage(topImg, 0, 0, scratchCanvas.width, scratchCanvas.height);
+                sCtx.globalCompositeOperation = 'destination-out';
+            };
+
+            // Scratch Particles
+            let scratchParticles = [];
+            function createScratchParticles(x, y) {
+                for(let i=0; i<3; i++){
+                    scratchParticles.push({
+                        x: x, y: y,
+                        vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+                        life: 1, color: `rgba(255, 215, 0, ${Math.random()})`
+                    });
+                }
+            }
+            // Simple render loop for scratch particles inside the same canvas context? 
+            // No, 'destination-out' clears content. We need a separate canvas or DOM elements for particles.
+            // For simplicity in single file, let's skip complex canvas layering and just do the blur.
+            
+            function scratch(e) {
+                const rect = scratchCanvas.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                
+                sCtx.save();
+                sCtx.shadowBlur = 20; // Soft Edge
+                sCtx.shadowColor = 'black';
+                sCtx.beginPath(); sCtx.arc(x, y, 40, 0, Math.PI * 2); sCtx.fill(); 
+                sCtx.restore();
+                
+                // DOM Particle Effect
+                const p = document.createElement('div');
+                p.style.position = 'absolute'; p.style.left = x + 'px'; p.style.top = y + 'px';
+                p.style.width = '4px'; p.style.height = '4px'; p.style.background = '#ff4d00';
+                p.style.borderRadius = '50%'; p.style.pointerEvents = 'none';
+                p.style.zIndex = '30';
+                container.appendChild(p);
+                // Animate out
+                const angle = Math.random() * Math.PI * 2;
+                const vel = Math.random() * 50 + 20;
+                p.animate([
+                    { transform: `translate(0,0) scale(1)`, opacity: 1 },
+                    { transform: `translate(${Math.cos(angle)*vel}px, ${Math.sin(angle)*vel}px) scale(0)`, opacity: 0 }
+                ], { duration: 500, fill: 'forwards' }).onfinish = () => p.remove();
+            }
+            scratchCanvas.addEventListener('mousemove', scratch);
+            scratchCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); scratch(e); });
+        }
+
+        // --- Stats & Reveal ---
+        function animateCounters() {
+            document.querySelectorAll('.stat-counter').forEach(counter => {
+                const updateCount = () => {
+                    const target = +counter.getAttribute('data-target');
+                    const count = +counter.innerText;
+                    const inc = target / 100; 
+                    if (count < target) { counter.innerText = Math.ceil(count + inc); setTimeout(updateCount, 20); }
+                    else { counter.innerText = target; }
+                }; updateCount();
+            });
+        }
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    if (entry.target.id === 'stats-section' && !entry.target.classList.contains('counted')) {
+                        animateCounters(); entry.target.classList.add('counted');
+                    }
+                }
+            });
+        }, { threshold: 0.15 });
+        document.querySelectorAll('.reveal-blur').forEach(el => revealObserver.observe(el));
+
+        // --- Portfolio Data (从数据库加载) ---
+        async function loadProjects() {
+            const client = initSupabase();
+            if (!client) {
+                console.error('Supabase 未初始化');
+                return;
+            }
+
+            try {
+                const { data, error } = await client
+                    .from('projects')
+                    .select('*')
+                    .eq('published', true)
+                    .order('pinned', { ascending: false })
+                    .order('sort_order', { ascending: false })
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('加载项目失败:', error);
+                    return;
+                }
+
+                const grid = document.getElementById('portfolioGrid');
+                if (!grid) return;
+
+                // 清空现有内容
+                grid.innerHTML = '';
+
+                if (!data || data.length === 0) {
+                    grid.innerHTML = '<div class="col-span-12 text-center text-gray-500 py-12">暂无作品展示</div>';
+                    return;
+                }
+
+                // 渲染项目卡片
+                data.forEach((p, idx) => {
+                    const spanClass = (idx === 0 || idx % 5 === 0 || idx % 8 === 0) ? 'span-8' : 'span-4';
+                    const card = document.createElement('div');
+                    card.className = `project-card ${spanClass}`;
+                    card.onclick = () => openPfModal({
+                        id: p.id,
+                        title: p.title,
+                        category: p.category || '',
+                        location: p.location || '',
+                        duration: p.duration || '',
+                        area: p.area || '',
+                        cost: p.cost || '',
+                        desc: p.description || '',
+                        images: p.images || []
+                    });
+                    
+                    const coverImg = p.cover_url || (p.images && p.images.length > 0 ? p.images[0] : 'https://via.placeholder.com/800x600?text=No+Image');
+                    card.innerHTML = `
+                        <img src="${coverImg}" alt="${p.title || ''}" onerror="this.src='https://via.placeholder.com/800x600?text=No+Image'">
+                        <div class="project-info">
+                            <span class="text-[#ff4d00] text-xs font-['Syncopate'] mb-1 block">${p.category || '项目'}</span>
+                            <h3 class="text-2xl font-semibold text-white">${p.title || ''}</h3>
+                            <p class="text-white/60 text-sm mt-1">${p.location || ''}${p.area ? ' / ' + p.area : ''}</p>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                console.error('加载项目错误:', err);
+            }
+        }
+
+        // 页面加载时获取项目数据（延迟加载）
+        function initPageData() {
+            if (window.supabase) {
+                loadProjects();
+                loadReviews();
+            } else {
+                setTimeout(initPageData, 100);
+            }
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                    initPageData();
+                    handleProjectIdFromUrl();
+                }, 300);
+            });
+        } else {
+            setTimeout(() => {
+                initPageData();
+                handleProjectIdFromUrl();
+            }, 300);
+        }
+
+        // 处理URL中的项目ID参数
+        function handleProjectIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('projectId');
+            
+            if (projectId) {
+                // 等待页面加载完成后再滚动
+                setTimeout(() => {
+                    const contactSection = document.getElementById('contact');
+                    if (contactSection) {
+                        contactSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        
+                        // 等待滚动完成后再填充表单
+                        setTimeout(() => {
+                            const messageInput = document.getElementById('clientMessage');
+                            if (messageInput) {
+                                // 创建引用框的 HTML
+                                const refBoxId = 'project-ref-' + Date.now();
+                                const refBoxHtml = `
+                                    <div class="project-reference-box" data-ref-id="${refBoxId}" data-project-id="${projectId}">
+                                        <div class="ref-content">
+                                            <span class="ref-label">项目ID:</span>
+                                            <span class="ref-id">${projectId}</span>
+                                        </div>
+                                        <div class="ref-close" onclick="removeProjectReference('${refBoxId}')">
+                                            <iconify-icon icon="solar:close-circle-bold" width="14"></iconify-icon>
+                                        </div>
+                                    </div>
+                                `;
+                                
+                                // 将引用框插入到 textarea 的父容器中
+                                const messageContainer = messageInput.parentElement;
+                                const refBoxWrapper = document.createElement('div');
+                                refBoxWrapper.className = 'project-ref-wrapper mb-2';
+                                refBoxWrapper.innerHTML = refBoxHtml;
+                                
+                                // 如果已有引用框，先移除
+                                const existingRef = messageContainer.querySelector('.project-ref-wrapper');
+                                if (existingRef) {
+                                    existingRef.remove();
+                                }
+                                
+                                // 插入引用框到 textarea 之前
+                                messageContainer.insertBefore(refBoxWrapper, messageInput);
+                                
+                                // 聚焦到输入框
+                                messageInput.focus();
+                                
+                                // 清除URL参数
+                                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+                            }
+                        }, 500);
+                    }
+                }, 300);
+            }
+        }
+
+        // --- Portfolio Modal Logic with 3D Info Box ---
+        const modal = document.getElementById('pfModal');
+        const pfInfoBox = document.getElementById('pfInfoBox');
+        let currentProjectImages = [], currentImgIndex = 0;
+
+        let currentProjectId = null;
+
+        function openPfModal(data) {
+            currentProjectId = data.id;
+            document.getElementById('pfCategory').innerText = data.category;
+            document.getElementById('pfTitle').innerText = data.title;
+            document.getElementById('pfDesc').innerText = data.desc;
+            document.getElementById('pfLoc').innerText = data.location;
+            document.getElementById('pfArea').innerText = data.area;
+            document.getElementById('pfCost').innerText = data.cost;
+            document.getElementById('pfDuration').innerText = data.duration;
+            
+            // 显示项目ID
+            if (data.id) {
+                document.getElementById('pfProjectIdValue').innerText = data.id;
+                document.getElementById('pfProjectId').style.display = 'block';
+            } else {
+                document.getElementById('pfProjectId').style.display = 'none';
+            }
+
+            currentProjectImages = data.images; currentImgIndex = 0;
+            const track = document.getElementById('pfTrack');
+            track.innerHTML = '';
+            data.images.forEach(src => {
+                const img = document.createElement('img'); img.src = src; img.className = 'pf-slide-img';
+                track.appendChild(img);
+            });
+            track.style.transform = `translateY(0)`;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Mouse Move Effect for Info Box
+            window.addEventListener('mousemove', moveInfoBox);
+        }
+
+        function closePfModal() {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            window.removeEventListener('mousemove', moveInfoBox);
+            // Reset transforms
+            pfInfoBox.style.transform = 'translateX(-50px) rotateY(10deg)'; 
+        }
+
+        function moveInfoBox(e) {
+            // Subtle parallax for info box
+            const x = (window.innerWidth / 2 - e.clientX) / 40;
+            const y = (window.innerHeight / 2 - e.clientY) / 40;
+            pfInfoBox.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+        }
+
+        function changeSlide(direction) {
+            currentImgIndex = (currentImgIndex + direction + currentProjectImages.length) % currentProjectImages.length;
+            document.getElementById('pfTrack').style.transform = `translateY(-${currentImgIndex * 100}%)`;
+        }
+
+        function startProjectConsultation() {
+            if (!currentProjectId) return;
+            
+            // 获取当前项目信息
+            const projectTitle = document.getElementById('pfTitle').innerText;
+            const projectCategory = document.getElementById('pfCategory').innerText;
+            
+            // 关闭模态框
+            closePfModal();
+            
+            // 等待动画完成后再滚动
+            setTimeout(() => {
+                // 滚动到联系我们板块
+                const contactSection = document.getElementById('contact');
+                if (contactSection) {
+                    contactSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    // 等待滚动完成后再填充表单
+                    setTimeout(() => {
+                        const messageInput = document.getElementById('clientMessage');
+                        if (messageInput) {
+                            // 创建引用框的 HTML
+                            const refBoxId = 'project-ref-' + Date.now();
+                            const refBoxHtml = `
+                                <div class="project-reference-box" data-ref-id="${refBoxId}" data-project-id="${currentProjectId}">
+                                    <div class="ref-content">
+                                        <span class="ref-label">项目ID:</span>
+                                        <span class="ref-id">${currentProjectId}</span>
+                                    </div>
+                                    <div class="ref-close" onclick="removeProjectReference('${refBoxId}')">
+                                        <iconify-icon icon="solar:close-circle-bold" width="14"></iconify-icon>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // 将引用框插入到 textarea 的父容器中
+                            const messageContainer = messageInput.parentElement; // div.relative
+                            const refBoxWrapper = document.createElement('div');
+                            refBoxWrapper.className = 'project-ref-wrapper mb-2';
+                            refBoxWrapper.innerHTML = refBoxHtml;
+                            
+                            // 如果已有引用框，先移除
+                            const existingRef = messageContainer.querySelector('.project-ref-wrapper');
+                            if (existingRef) {
+                                existingRef.remove();
+                            }
+                            
+                            // 插入引用框到 textarea 之前
+                            messageContainer.insertBefore(refBoxWrapper, messageInput);
+                            
+                            // 聚焦到输入框
+                            messageInput.focus();
+                        }
+                    }, 500);
+                }
+            }, 300);
+        }
+
+        function removeProjectReference(refBoxId) {
+            const refBox = document.querySelector(`[data-ref-id="${refBoxId}"]`);
+            if (refBox) {
+                const wrapper = refBox.closest('.project-ref-wrapper');
+                if (wrapper) {
+                    wrapper.remove();
+                }
+            }
+        }
+
+        // 从表单中提取项目ID（如果有引用框）
+        function getProjectIdFromForm() {
+            const refBox = document.querySelector('.project-reference-box');
+            if (refBox) {
+                return refBox.getAttribute('data-project-id');
+            }
+            return null;
+        }
+
+        // --- Review Modal Logic ---
+        const reviewModal = document.getElementById('reviewModal');
+        const reviewContent = reviewModal.querySelector('.review-modal-content');
+        function openReviewModal() {
+            reviewModal.classList.remove('invisible', 'opacity-0');
+            reviewModal.classList.add('opacity-100');
+            reviewContent.classList.remove('scale-90');
+            reviewContent.classList.add('scale-100');
+        }
+        function closeReviewModal() {
+            reviewModal.classList.add('opacity-0', 'invisible');
+            reviewModal.classList.remove('opacity-100');
+            reviewContent.classList.add('scale-90');
+            reviewContent.classList.remove('scale-100');
+        }
+
+        // --- Load Reviews from Database ---
+        async function loadReviews() {
+            const client = initSupabase();
+            if (!client) {
+                console.error('Supabase 未初始化');
+                return;
+            }
+
+            try {
+                const { data, error } = await client
+                    .from('reviews')
+                    .select('*')
+                    .eq('approved', true)
+                    .order('pinned', { ascending: false })
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+
+                if (error) {
+                    console.error('加载评价失败:', error);
+                    return;
+                }
+
+                const reviewTrack = document.getElementById('reviewTrack');
+                if (!reviewTrack) return;
+
+                // 清空现有内容
+                reviewTrack.innerHTML = '';
+
+                if (!data || data.length === 0) {
+                    reviewTrack.innerHTML = '<div class="review-card water-glass-card" style="width: 350px;"><p class="text-gray-400 text-center py-8">暂无评价</p></div>';
+                    // 复制一次用于无缝滚动
+                    reviewTrack.innerHTML += reviewTrack.innerHTML;
+                    return;
+                }
+
+                // 渲染评价卡片
+                data.forEach((r) => {
+                    const card = document.createElement('div');
+                    card.className = 'review-card water-glass-card';
+                    card.style.width = '350px';
+
+                    // 生成星星
+                    const stars = Array.from({ length: 5 }, (_, i) => {
+                        const filled = r.rating && i < r.rating;
+                        return `<iconify-icon icon="solar:star-bold" class="${filled ? 'text-[#ff4d00]' : 'text-gray-600'}"></iconify-icon>`;
+                    }).join('');
+
+                    const avatarUrl = r.avatar_url || 'https://via.placeholder.com/40?text=' + (r.name ? r.name.charAt(0) : '?');
+                    const name = r.name || '匿名';
+                    const projectName = r.project_name || '';
+
+                    card.innerHTML = `
+                        <div class="flex gap-1 mb-6 text-sm">${stars}</div>
+                        <p class="text-gray-300 italic mb-8 font-light">"${r.content || ''}"</p>
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 bg-gray-700 rounded-full overflow-hidden">
+                                <img src="${avatarUrl}" alt="${name}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/40?text=${encodeURIComponent(name.charAt(0))}'">
+                            </div>
+                            <div>
+                                <h4 class="text-white font-medium text-sm">${name}</h4>
+                                ${projectName ? `<p class="text-[10px] text-gray-500 font-['Syncopate']">${projectName}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    reviewTrack.appendChild(card);
+                });
+
+                // 复制内容用于无缝滚动
+                reviewTrack.innerHTML += reviewTrack.innerHTML;
+            } catch (err) {
+                console.error('加载评价错误:', err);
+            }
+        }
+
+        // 评价数据在initPageData中加载
+
+        // --- Baidu Map Initialization ---
+        function initBaiduMap() {
+            const mapContainer = document.getElementById("baiduMap");
+            if (!mapContainer) {
+                console.error("百度地图容器未找到");
+                return;
+            }
+            
+            if (typeof BMap === 'undefined') {
+                console.warn("百度地图API未加载，等待加载...");
+                setTimeout(initBaiduMap, 200);
+                return;
+            }
+            
+            try {
+                const map = new BMap.Map("baiduMap");
+                const point = new BMap.Point(82.606194, 41.559479);
+                map.centerAndZoom(point, 16);
+                map.enableScrollWheelZoom(true);
+                
+                // 添加标记点
+                const marker = new BMap.Marker(point);
+                map.addOverlay(marker);
+                
+                // 添加信息窗口
+                const infoWindow = new BMap.InfoWindow("新和县迎宾花园小区<br/>维度空间设计工作室", {
+                    width: 200,
+                    height: 60,
+                    title: "WeiDU"
+                });
+                marker.addEventListener("click", function(){
+                    map.openInfoWindow(infoWindow, point);
+                });
+                
+                // 添加控件
+                map.addControl(new BMap.NavigationControl());
+                map.addControl(new BMap.ScaleControl());
+                
+                console.log("百度地图初始化成功");
+            } catch (error) {
+                console.error("百度地图初始化失败:", error);
+            }
+        }
+        
+        // 等待页面和百度地图API都加载完成后初始化
+        function tryInitMap() {
+            if (document.readyState === 'complete' && typeof BMap !== 'undefined') {
+                initBaiduMap();
+            } else if (typeof BMap !== 'undefined') {
+                initBaiduMap();
+            } else {
+                setTimeout(tryInitMap, 200);
+            }
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', tryInitMap);
+        } else {
+            tryInitMap();
+        }
+        
+        // 备用：监听window load事件
+        window.addEventListener('load', function() {
+            if (typeof BMap !== 'undefined') {
+                const mapContainer = document.getElementById("baiduMap");
+                if (mapContainer && !mapContainer.hasAttribute('data-initialized')) {
+                    mapContainer.setAttribute('data-initialized', 'true');
+                    initBaiduMap();
+                }
+            }
+        });
+
+        // --- Appointment Date/Time Picker ---
+        let contactType = 'immediate';
+        let appointmentPicker = null;
+        let appointmentAnimTimer = null;
+
+        // --- Toast Bubble ---
+        let toastTimer = null;
+        function showToast(text) {
+            // 单例：始终复用一个节点
+            let toast = document.getElementById('toastBubble');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toastBubble';
+                toast.className = 'toast-bubble';
+                document.body.appendChild(toast);
+            }
+
+            toast.textContent = text;
+            // 重新触发动画
+            toast.classList.remove('show');
+            // 强制回流
+            void toast.offsetHeight;
+            toast.classList.add('show');
+
+            if (toastTimer) window.clearTimeout(toastTimer);
+            toastTimer = window.setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2200);
+        }
+
+        function openAppointmentSection() {
+            const appointmentSection = document.getElementById('appointmentSection');
+            if (!appointmentSection) return;
+            if (appointmentAnimTimer) window.clearTimeout(appointmentAnimTimer);
+
+            appointmentSection.classList.remove('hidden');
+            // 下一帧再加 is-open，确保过渡生效
+            requestAnimationFrame(() => appointmentSection.classList.add('is-open'));
+        }
+
+        function closeAppointmentSection() {
+            const appointmentSection = document.getElementById('appointmentSection');
+            if (!appointmentSection) return;
+            if (appointmentAnimTimer) window.clearTimeout(appointmentAnimTimer);
+
+            appointmentSection.classList.remove('is-open');
+            appointmentAnimTimer = window.setTimeout(() => {
+                appointmentSection.classList.add('hidden');
+            }, 460);
+        }
+
+        function toggleContactType(type) {
+            contactType = type;
+            const btnImmediate = document.getElementById('btnImmediate');
+            const btnAppointment = document.getElementById('btnAppointment');
+
+            if (type === 'immediate') {
+                btnImmediate.classList.add('border-orange-500', 'text-white');
+                btnImmediate.classList.remove('border-neutral-800', 'text-neutral-400');
+                btnAppointment.classList.add('border-neutral-800', 'text-neutral-400');
+                btnAppointment.classList.remove('border-orange-500', 'text-white');
+                closeAppointmentSection();
+            } else {
+                btnAppointment.classList.add('border-orange-500', 'text-white');
+                btnAppointment.classList.remove('border-neutral-800', 'text-neutral-400');
+                btnImmediate.classList.add('border-neutral-800', 'text-neutral-400');
+                btnImmediate.classList.remove('border-orange-500', 'text-white');
+                openAppointmentSection();
+                
+                // Initialize flatpickr if not already initialized
+                if (!appointmentPicker) {
+                    appointmentPicker = flatpickr("#appointmentDateTime", {
+                        enableTime: true,
+                        dateFormat: "Y-m-d H:i",
+                        time_24hr: true,
+                        minDate: "today",
+                        locale: "zh",
+                        minuteIncrement: 30,
+                        defaultHour: 9,
+                        defaultMinute: 0
+                    });
+                }
+            }
+        }
+
+        // 初始化 Supabase 客户端（延迟初始化，确保库已加载）
+        let supabaseClient = null;
+        function initSupabase() {
+            if (!supabaseClient && window.supabase) {
+                const SUPABASE_URL = 'https://aitxgwfqtcrxxcglwmrq.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpdHhnd2ZxdGNyeHhjZ2x3bXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDc1NTQsImV4cCI6MjA4MTIyMzU1NH0.OLDft-LmrRZEGEUEzJ9srevbnI68vV9jWf4Ym05lkAw';
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+            return supabaseClient;
+        }
+
+        // 发送 ntfy 推送通知
+        async function sendNtfyNotification(title, message, priority = 'default') {
+            try {
+                const NTFY_TOKEN = 'tk_7266bxclhxy1pmwfh1rmh0tqeaf4p';
+                const NTFY_TOPIC = 'weidu-studio-alerts';
+                
+                // 直接使用 ntfy.sh API，使用 Bearer token 认证
+                const response = await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${NTFY_TOKEN}`,
+                        'Title': title || '通知',
+                        'Priority': priority,
+                        'Tags': 'bell,information_source',
+                        'Content-Type': 'text/plain'
+                    },
+                    body: message
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('推送通知失败:', response.status, errorText);
+                    console.error('响应详情:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: errorText,
+                        url: `https://ntfy.sh/${NTFY_TOPIC}`
+                    });
+                } else {
+                    console.log('推送通知成功');
+                    const responseText = await response.text();
+                    console.log('推送响应:', responseText);
+                }
+            } catch (err) {
+                console.error('推送通知失败:', err);
+                // 静默失败，不影响主流程
+            }
+        }
+
+        async function handleFormSubmit() {
+            // 确保 Supabase 已初始化
+            const client = initSupabase();
+            if (!client) {
+                showToast('系统初始化中，请稍后重试');
+                return;
+            }
+
+            const name = document.getElementById('clientName').value.trim();
+            const phone = document.getElementById('clientPhone').value.trim();
+            let message = document.getElementById('clientMessage').value.trim();
+            const appointmentTime = contactType === 'appointment' ? document.getElementById('appointmentDateTime').value : null;
+            const projectId = getProjectIdFromForm();
+
+            // 如果有项目ID引用框，在消息前添加项目ID信息
+            if (projectId) {
+                const projectIdPrefix = `客户想要了解的项目：${projectId}\n\n`;
+                if (!message.startsWith(projectIdPrefix)) {
+                    message = projectIdPrefix + message;
+                }
+            }
+
+            if (!name || !phone || !message) {
+                showToast('请填写完整信息');
+                return;
+            }
+
+            try {
+                const { data, error } = await client
+                    .from('leads')
+                    .insert({
+                        name: name,
+                        phone: phone,
+                        message: message,
+                        contact_type: contactType,
+                        appointment_time: appointmentTime ? new Date(appointmentTime).toISOString() : null,
+                        status: 'new'
+                    });
+
+                if (error) {
+                    console.error('提交失败:', error);
+                    showToast('提交失败，请稍后重试');
+                    return;
+                }
+
+                // 发送推送通知
+                const contactTypeText = contactType === 'appointment' ? '预约咨询' : '立即联系';
+                const appointmentText = appointmentTime ? `预约时间: ${appointmentTime}` : '立即联系';
+                const projectText = projectId ? `\n项目ID: ${projectId}` : '';
+                const notificationMessage = `新客户需求\n\n姓名: ${name}\n电话: ${phone}\n联系方式: ${appointmentText}${projectText}\n\n需求内容:\n${message}`;
+                
+                await sendNtfyNotification('新客户需求', notificationMessage, 'high');
+
+                if (contactType === 'appointment') {
+                    showToast('我们会在您预约的时间联系您哦！');
+                } else {
+                    showToast('我们会尽快联系您哦！');
+                }
+                
+                // 重置表单
+                document.getElementById('clientName').value = '';
+                document.getElementById('clientPhone').value = '';
+                document.getElementById('clientMessage').value = '';
+                const refWrapper = document.querySelector('.project-ref-wrapper');
+                if (refWrapper) {
+                    refWrapper.remove();
+                }
+                if (appointmentPicker) {
+                    appointmentPicker.clear();
+                }
+            } catch (err) {
+                console.error('提交错误:', err);
+                showToast('提交失败，请稍后重试');
+            }
+        }
+
+        // --- Review Stars / Submit ---
+        let selectedReviewRating = 0;
+        function applyReviewStars(rating) {
+            const stars = document.querySelectorAll('#reviewStars .review-star');
+            stars.forEach((starEl) => {
+                const val = Number(starEl.getAttribute('data-star') || '0');
+                if (val <= rating) starEl.classList.add('on');
+                else starEl.classList.remove('on');
+            });
+        }
+
+        function initReviewStars() {
+            const wrap = document.getElementById('reviewStars');
+            if (!wrap) return;
+            const stars = wrap.querySelectorAll('.review-star');
+            stars.forEach((starEl) => {
+                const val = Number(starEl.getAttribute('data-star') || '0');
+                starEl.addEventListener('mouseenter', () => applyReviewStars(val));
+                starEl.addEventListener('mouseleave', () => applyReviewStars(selectedReviewRating));
+                starEl.addEventListener('click', () => {
+                    selectedReviewRating = val;
+                    applyReviewStars(selectedReviewRating);
+                    // 轻微“点亮”反馈
+                    starEl.animate(
+                        [
+                            { transform: 'translateY(-2px) scale(1.08)' },
+                            { transform: 'translateY(0) scale(1)' }
+                        ],
+                        { duration: 220, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' }
+                    );
+                });
+            });
+        }
+
+        async function submitReview() {
+            const client = initSupabase();
+            if (!client) {
+                showToast('系统初始化中，请稍后重试');
+                return;
+            }
+
+            const nameInput = document.getElementById('reviewName');
+            const projectInput = document.getElementById('reviewProject');
+            const contentInput = document.getElementById('reviewContent');
+
+            const name = nameInput ? nameInput.value.trim() : '';
+            const projectName = projectInput ? projectInput.value.trim() : '';
+            const content = contentInput ? contentInput.value.trim() : '';
+
+            if (!content) {
+                showToast('请填写评价内容');
+                return;
+            }
+
+            if (selectedReviewRating === 0) {
+                showToast('请选择评分');
+                return;
+            }
+
+            try {
+                const { error } = await client
+                    .from('reviews')
+                    .insert({
+                        name: name || null,
+                        project_name: projectName || null,
+                        rating: selectedReviewRating,
+                        content: content,
+                        avatar_url: null,
+                        approved: false // 默认待审核
+                    });
+
+                if (error) {
+                    console.error('提交评价失败:', error);
+                    showToast('提交失败，请稍后重试');
+                    return;
+                }
+
+                // 发送推送通知
+                const starsText = '⭐'.repeat(selectedReviewRating) + '☆'.repeat(5 - selectedReviewRating);
+                const nameText = name || '匿名用户';
+                const projectText = projectName ? `\n项目: ${projectName}` : '';
+                const notificationMessage = `新客户评价 ${starsText}\n\n评价人: ${nameText}${projectText}\n\n评价内容:\n${content}`;
+                
+                await sendNtfyNotification('新客户评价', notificationMessage, 'default');
+
+                showToast('感谢您的评价，审核通过后会显示在这里！');
+                
+                // 关闭弹窗 + 重置表单
+                closeReviewModal();
+                setTimeout(() => {
+                    if (nameInput) nameInput.value = '';
+                    if (projectInput) projectInput.value = '';
+                    if (contentInput) contentInput.value = '';
+                    selectedReviewRating = 0;
+                    applyReviewStars(0);
+                }, 300);
+            } catch (err) {
+                console.error('提交评价错误:', err);
+                showToast('提交失败，请稍后重试');
+            }
+        }
+
+        initReviewStars();
+    </script>
+</body></html>
