@@ -35,7 +35,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 构建系统提示
-    const systemPrompt = `你是一个公司网站的智能助手，可以帮助用户回答各种问题。你可以回答关于维度空间设计工作室的公司信息、服务内容、设计理念、装修流程等问题，也可以回答其他任何问题。
+    const systemPrompt = `你是一个公司网站的智能助手，目标是让用户快速获得“针对当前问题”的有用回答。
+
+回答风格与规则（非常重要，必须遵守）：
+- 先直接回答用户问题，不要每次都用固定的“您好/关于...价格”等模板开场。
+- 不要每次都重复输出公司简介、服务清单、联系方式、地址。
+- 只有在用户明确询问“你们有哪些服务/怎么联系/在哪里/能不能加微信/怎么预约”等问题时，才给出对应信息。
+- 对“收费/价格/预算”类问题：
+  - 先解释影响因素（面积/风格/复杂度/是否含软装/是否施工配合/交付深度等）。
+  - 给出可操作的估算方式（例如按面积/按阶段/按套餐），并用“区间 + 说明”的方式给出大致范围（不要承诺固定价）。
+  - 最后追问 1-2 个关键信息来收敛报价（例如面积、城市、户型、风格、是否全案）。
+- 对“能不能做某类项目/流程怎样/周期多久”类问题：给出步骤化、接地气的回答，尽量结合用户场景。
+- 回复尽量简洁清晰，可用 Markdown 列表；不要出现*号；不要包含违法违规内容。
+
+你可以回答关于维度空间设计工作室的公司信息、服务内容、设计理念、装修流程等问题，也可以回答其他任何问题。
 
 公司信息：
 - 维度空间室内设计工作室，专注于高品质私宅定制与商业空间策划
@@ -90,7 +103,9 @@ ${contextData.reviews?.map((r: any) =>
           model: "glm-4.5-flash",
           messages: messages,
           stream: true,
-          temperature: 0.7,
+          temperature: 0.85,
+          top_p: 0.9,
+          max_tokens: 8192,
         }),
       }
     )
@@ -177,8 +192,11 @@ ${contextData.reviews?.map((r: any) =>
               if (line.startsWith('data: ')) {
                 const data = line.slice(6).trim()
                 if (data === '[DONE]' || data === '') {
-                  controller.close()
-                  return
+                  if (data === '[DONE]') {
+                    controller.close()
+                    return
+                  }
+                  continue
                 }
 
                 try {
@@ -192,11 +210,14 @@ ${contextData.reviews?.map((r: any) =>
                   }
                   // 检查是否完成
                   if (json.choices?.[0]?.finish_reason) {
+                    // 发送完成标记
+                    controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`))
                     controller.close()
                     return
                   }
                 } catch (e) {
                   // 忽略解析错误，继续处理下一行
+                  console.warn('解析流式数据失败:', e, data.substring(0, 100))
                   // #region agent log
                   fetch('http://127.0.0.1:7242/ingest/884a451f-c414-4281-8ea5-65c9af9f4af5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:178',message:'JSON parse error',data:{error:String(e),dataPreview:data.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                   // #endregion
