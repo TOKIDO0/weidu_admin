@@ -70,7 +70,7 @@ export function Sidebar({ isOpen, onClose, onChatOpen }: { isOpen?: boolean; onC
         w-64 shrink-0 bg-white border-r border-gray-200 
         flex flex-col h-screen
         transform transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${isOpen !== false ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
       {/* Logo Section */}
       <div className="p-4 sm:p-6 pb-4">
