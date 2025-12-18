@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import type { ProjectRow } from "@/lib/types"
 import { Button } from "@/components/ui"
@@ -66,6 +68,7 @@ function toImages(text: string) {
 // 图片管理组件
 function ImageManager({ images, onImagesChange }: { images: string[], onImagesChange: (images: string[]) => void }) {
   const [isDragging, setIsDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -94,9 +97,57 @@ function ImageManager({ images, onImagesChange }: { images: string[], onImagesCh
   }
 
   const handleFiles = async (files: File[]) => {
-    // 这里应该上传到 Supabase Storage，但为了简化，我们只支持 URL 输入
-    // 实际项目中应该实现文件上传功能
-    alert('图片上传功能需要配置 Supabase Storage。目前请使用图片 URL 方式添加图片。')
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"))
+    if (!imageFiles.length) return
+    if (uploading) return
+
+    setUploading(true)
+    try {
+      const newUrls: string[] = []
+
+      for (const file of imageFiles) {
+        const fileExt = file.name.split(".").pop() || "png"
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = `projects/${fileName}`
+
+        let bucketName = "project-images"
+        let uploadError: { message: string } | null = null
+
+        const { error: primaryErr } = await supabase.storage
+          .from(bucketName)
+          .upload(filePath, file)
+
+        if (primaryErr) {
+          if (primaryErr.message.includes("not found") || primaryErr.message.includes("Bucket")) {
+            bucketName = "images"
+            const { error: fallbackErr } = await supabase.storage
+              .from(bucketName)
+              .upload(filePath, file)
+            if (fallbackErr) uploadError = fallbackErr
+          } else {
+            uploadError = primaryErr
+          }
+        }
+
+        if (uploadError) {
+          alert(
+            "上传失败: " +
+              uploadError.message +
+              "\n\n请确保 Supabase Storage 中存在 \"project-images\" 或 \"images\" 存储桶，并且当前登录账号有上传权限。"
+          )
+          continue
+        }
+
+        const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath)
+        if (data?.publicUrl) newUrls.push(data.publicUrl)
+      }
+
+      if (newUrls.length) {
+        onImagesChange([...images, ...newUrls])
+      }
+    } finally {
+      setUploading(false)
+    }
   }
 
   const addImageUrl = () => {
@@ -142,13 +193,17 @@ function ImageManager({ images, onImagesChange }: { images: string[], onImagesCh
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => {
+          if (uploading) return
+          fileInputRef.current?.click()
+        }}
         className={`
           border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
           ${isDragging 
             ? 'border-indigo-500 bg-indigo-50' 
             : 'border-slate-300 hover:border-indigo-400 hover:bg-slate-50'
           }
+          ${uploading ? 'opacity-60 cursor-not-allowed' : ''}
         `}
       >
         <input
@@ -161,7 +216,7 @@ function ImageManager({ images, onImagesChange }: { images: string[], onImagesCh
         />
         <Upload className="w-8 h-8 mx-auto mb-2 text-slate-400" />
         <p className="text-sm text-slate-600 mb-1">
-          拖动图片到此处或点击选择
+          {uploading ? '上传中...' : '拖动图片到此处或点击选择'}
         </p>
         <p className="text-xs text-slate-500">
           或 <button type="button" onClick={(e) => { e.stopPropagation(); addImageUrl(); }} className="text-indigo-600 hover:underline">添加图片 URL</button>
@@ -186,11 +241,16 @@ const Badge = ({ children, variant = 'default' }: { children: React.ReactNode, v
 }
 
 export default function ProjectsPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [rows, setRows] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>("")
   const [draft, setDraft] = useState<ProjectDraft>(emptyDraft())
+  const [privateCustomerPhone, setPrivateCustomerPhone] = useState("")
+  const [privateMetaLoading, setPrivateMetaLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -231,6 +291,57 @@ export default function ProjectsPage() {
     load()
   }, [])
 
+  function clearIdFromUrl() {
+    if (!searchParams.get("id")) return
+    const nextParams = new URLSearchParams()
+    searchParams.forEach((value, key) => {
+      if (key === "id") return
+      nextParams.set(key, value)
+    })
+    const qs = nextParams.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
+  function closeDrawer() {
+    clearIdFromUrl()
+    const drawer = document.getElementById('project-drawer')
+    if (drawer) {
+      drawer.style.animation = 'slideOutToRight 0.3s ease-in'
+      setTimeout(() => setIsDrawerOpen(false), 300)
+    } else {
+      setIsDrawerOpen(false)
+    }
+  }
+
+  async function loadPrivateMeta(projectId: string) {
+    setPrivateMetaLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from("project_private_meta")
+        .select("customer_phone")
+        .eq("project_id", projectId)
+        .maybeSingle()
+      if (error) {
+        setPrivateCustomerPhone("")
+        return
+      }
+      setPrivateCustomerPhone((data?.customer_phone ?? "") as string)
+    } finally {
+      setPrivateMetaLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const id = searchParams.get("id")
+    if (!id) return
+    if (!rows.length) return
+    if (isDrawerOpen) return
+
+    const matched = rows.find((r) => r.id === id)
+    if (!matched) return
+    editRow(matched)
+  }, [isDrawerOpen, rows, searchParams])
+
   function editRow(r: ProjectRow) {
     setDraft({
       id: r.id,
@@ -247,18 +358,15 @@ export default function ProjectsPage() {
       pinned: Boolean(r.pinned),
       sort_order: Number(r.sort_order ?? 0),
     })
+    setPrivateCustomerPhone("")
+    void loadPrivateMeta(r.id)
     setIsDrawerOpen(true)
   }
 
   function resetDraft() {
     setDraft(emptyDraft())
-    const drawer = document.getElementById('project-drawer')
-    if (drawer) {
-      drawer.style.animation = 'slideOutToRight 0.3s ease-in'
-      setTimeout(() => setIsDrawerOpen(false), 300)
-    } else {
-      setIsDrawerOpen(false)
-    }
+    setPrivateCustomerPhone("")
+    closeDrawer()
   }
 
   function handleCreate() {
@@ -291,15 +399,62 @@ export default function ProjectsPage() {
       return
     }
 
-    const res = draft.id
-      ? await supabase.from("projects").update(payload).eq("id", draft.id)
-      : await supabase.from("projects").insert(payload)
+    const { data: authData } = await supabase.auth.getUser()
+    const userId = authData.user?.id ?? null
 
-    setSaving(false)
+    const res = draft.id
+      ? await supabase
+          .from("projects")
+          .update(payload)
+          .eq("id", draft.id)
+          .select("id")
+          .single()
+      : await supabase
+          .from("projects")
+          .insert(payload)
+          .select("id")
+          .single()
+
     if (res.error) {
+      setSaving(false)
       setError(res.error.message)
       return
     }
+
+    const projectId = (res.data as any)?.id as string | undefined
+    const trimmedPhone = privateCustomerPhone.trim()
+
+    if (projectId) {
+      if (trimmedPhone) {
+        const upsertRes = await supabase
+          .from("project_private_meta")
+          .upsert(
+            {
+              project_id: projectId,
+              customer_phone: trimmedPhone,
+              updated_by: userId,
+            },
+            { onConflict: "project_id" }
+          )
+        if (upsertRes.error) {
+          setSaving(false)
+          setError(upsertRes.error.message)
+          return
+        }
+      } else {
+        const delRes = await supabase
+          .from("project_private_meta")
+          .delete()
+          .eq("project_id", projectId)
+        if (delRes.error) {
+          setSaving(false)
+          setError(delRes.error.message)
+          return
+        }
+      }
+    }
+
+    setSaving(false)
     resetDraft()
     await load()
   }
@@ -529,15 +684,7 @@ export default function ProjectsPage() {
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-slate-900/20 transition-opacity" 
-            onClick={() => {
-              const drawer = document.getElementById('project-drawer')
-              if (drawer) {
-                drawer.style.animation = 'slideOutToRight 0.3s ease-in'
-                setTimeout(() => setIsDrawerOpen(false), 300)
-              } else {
-                setIsDrawerOpen(false)
-              }
-            }}
+            onClick={closeDrawer}
           />
           
           {/* Drawer Panel - 从右往左滑入动画 */}
@@ -555,15 +702,7 @@ export default function ProjectsPage() {
                 <p className="text-sm text-slate-500">填写下方的详细信息以发布到前台</p>
               </div>
               <button 
-                onClick={() => {
-                  const drawer = document.getElementById('project-drawer')
-                  if (drawer) {
-                    drawer.style.animation = 'slideOutToRight 0.3s ease-in'
-                    setTimeout(() => setIsDrawerOpen(false), 300)
-                  } else {
-                    setIsDrawerOpen(false)
-                  }
-                }}
+                onClick={closeDrawer}
                 className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -592,6 +731,34 @@ export default function ProjectsPage() {
                         className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300 text-slate-900"
                         placeholder="例如：静谧·私宅设计"
                       />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">客户手机号（仅后台）</label>
+                        <input
+                          type="text"
+                          value={privateCustomerPhone}
+                          onChange={(e) => setPrivateCustomerPhone(e.target.value)}
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300 text-slate-900"
+                          placeholder={privateMetaLoading ? "加载中..." : "例如：13800000000"}
+                          disabled={privateMetaLoading}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        {privateCustomerPhone.trim() ? (
+                          <Link
+                            href={`/customers/${encodeURIComponent(privateCustomerPhone.trim())}`}
+                            className="w-full px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-colors text-center"
+                          >
+                            查看客户时间线
+                          </Link>
+                        ) : (
+                          <div className="w-full px-4 py-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-400 text-center text-sm">
+                            填写手机号后可查看
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -781,15 +948,7 @@ export default function ProjectsPage() {
             <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-3">
               <button 
                 type="button"
-                onClick={() => {
-                  const drawer = document.getElementById('project-drawer')
-                  if (drawer) {
-                    drawer.style.animation = 'slideOutToRight 0.3s ease-in'
-                    setTimeout(() => setIsDrawerOpen(false), 300)
-                  } else {
-                    setIsDrawerOpen(false)
-                  }
-                }}
+                onClick={closeDrawer}
                 className="px-6 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-medium hover:bg-slate-50 transition-colors"
               >
                 取消

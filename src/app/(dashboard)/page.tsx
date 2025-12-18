@@ -11,7 +11,8 @@ import {
   TrendingUp,
   BookOpen,
   MessageSquare,
-  ArrowUpRight
+  ArrowUpRight,
+  Search
 } from "lucide-react"
 import Link from "next/link"
 import { CustomerAnalytics } from "@/components/CustomerAnalytics"
@@ -29,9 +30,83 @@ export default function DashboardHome() {
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [searchResults, setSearchResults] = useState<{
+    projects: { id: string; title: string | null }[]
+    leads: { id: string; name: string | null; phone: string | null }[]
+    progress: { id: string; title: string | null; customer_phone: string | null; project_id: string | null }[]
+    reviews: { id: string; name: string | null; project_name: string | null }[]
+  }>({
+    projects: [],
+    leads: [],
+    progress: [],
+    reviews: [],
+  })
+
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q) {
+      setSearchOpen(false)
+      setSearching(false)
+      setSearchResults({ projects: [], leads: [], progress: [], reviews: [] })
+      return
+    }
+
+    setSearchOpen(true)
+    const timer = setTimeout(async () => {
+      setSearching(true)
+      const like = `%${q}%`
+
+      try {
+        const [projectsRes, leadsRes, progressRes, reviewsRes] = await Promise.all([
+          supabase
+            .from("projects")
+            .select("id,title")
+            .ilike("title", like)
+            .order("created_at", { ascending: false })
+            .limit(8),
+          supabase
+            .from("leads")
+            .select("id,name,phone")
+            .or(`name.ilike.${like},phone.ilike.${like}`)
+            .order("created_at", { ascending: false })
+            .limit(8),
+          supabase
+            .from("project_progress")
+            .select("id,title,customer_phone,project_id")
+            .or(`customer_phone.ilike.${like},title.ilike.${like}`)
+            .order("progress_date", { ascending: false })
+            .limit(8),
+          supabase
+            .from("reviews")
+            .select("id,name,project_name")
+            .or(`name.ilike.${like},project_name.ilike.${like}`)
+            .order("created_at", { ascending: false })
+            .limit(8),
+        ])
+
+        setSearchResults({
+          projects: (projectsRes.data ?? []) as any,
+          leads: (leadsRes.data ?? []) as any,
+          progress: (progressRes.data ?? []) as any,
+          reviews: (reviewsRes.data ?? []) as any,
+        })
+      } catch (err) {
+        console.error("全局搜索失败:", err)
+        setSearchResults({ projects: [], leads: [], progress: [], reviews: [] })
+      } finally {
+        setSearching(false)
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   async function loadData() {
     setLoading(true)
@@ -228,6 +303,129 @@ export default function DashboardHome() {
         <p className="text-sm text-gray-600 mt-1">
           欢迎回来！这是维度空间后台的概览信息。
         </p>
+
+        <div className="mt-4 relative">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="全局搜索：项目名 / 客户手机号 / 进度标题 / 评价昵称..."
+              className="w-full max-w-2xl pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+            />
+          </div>
+
+          <div
+            className={[
+              "fixed inset-0 z-40",
+              searchOpen ? "" : "pointer-events-none",
+            ].join(" ")}
+            onClick={() => setSearchOpen(false)}
+          />
+
+          {searchOpen && (
+            <div className="absolute z-50 mt-2 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+                <div className="text-xs text-gray-600">
+                  {searching ? "搜索中..." : "搜索结果"}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(false)}
+                  className="shine-hover shine-hover-dark rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  关闭
+                </button>
+              </div>
+
+              <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                {(() => {
+                  const total =
+                    searchResults.projects.length +
+                    searchResults.leads.length +
+                    searchResults.progress.length +
+                    searchResults.reviews.length
+
+                  if (!searching && total === 0) {
+                    return <div className="px-4 py-6 text-sm text-gray-500">无匹配结果</div>
+                  }
+
+                  return (
+                    <div className="divide-y divide-gray-100">
+                      <div className="p-4">
+                        <div className="text-xs font-semibold text-gray-700 mb-2">项目（{searchResults.projects.length}）</div>
+                        <div className="space-y-2">
+                          {searchResults.projects.map((p) => (
+                            <Link
+                              key={p.id}
+                              href={`/projects?id=${encodeURIComponent(p.id)}`}
+                              className="block rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-gray-100 transition-colors"
+                              onClick={() => setSearchOpen(false)}
+                            >
+                              <div className="text-sm font-semibold text-gray-900 truncate">{p.title || "未命名项目"}</div>
+                              <div className="text-xs text-gray-500">ID：{p.id}</div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <div className="text-xs font-semibold text-gray-700 mb-2">客户需求（{searchResults.leads.length}）</div>
+                        <div className="space-y-2">
+                          {searchResults.leads.map((l) => (
+                            <Link
+                              key={l.id}
+                              href={`/leads?id=${encodeURIComponent(l.id)}`}
+                              className="block rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-gray-100 transition-colors"
+                              onClick={() => setSearchOpen(false)}
+                            >
+                              <div className="text-sm font-semibold text-gray-900 truncate">{l.name || "未命名"}</div>
+                              <div className="text-xs text-gray-500">{l.phone || "-"}</div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <div className="text-xs font-semibold text-gray-700 mb-2">项目跟踪（{searchResults.progress.length}）</div>
+                        <div className="space-y-2">
+                          {searchResults.progress.map((pr) => (
+                            <Link
+                              key={pr.id}
+                              href={`/project-progress?id=${encodeURIComponent(pr.id)}`}
+                              className="block rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-gray-100 transition-colors"
+                              onClick={() => setSearchOpen(false)}
+                            >
+                              <div className="text-sm font-semibold text-gray-900 truncate">{pr.title || "未命名进度"}</div>
+                              <div className="text-xs text-gray-500">{pr.customer_phone || "-"}</div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <div className="text-xs font-semibold text-gray-700 mb-2">评价（{searchResults.reviews.length}）</div>
+                        <div className="space-y-2">
+                          {searchResults.reviews.map((r) => (
+                            <Link
+                              key={r.id}
+                              href={`/reviews?id=${encodeURIComponent(r.id)}`}
+                              className="block rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-gray-100 transition-colors"
+                              onClick={() => setSearchOpen(false)}
+                            >
+                              <div className="text-sm font-semibold text-gray-900 truncate">{r.name || "匿名"}</div>
+                              <div className="text-xs text-gray-500">{r.project_name || "-"}</div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards - 参考图二设计，使用响应式网格 */}

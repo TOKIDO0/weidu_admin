@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import type { LeadRow } from "@/lib/types"
 import { Button, Card, Input, Textarea } from "@/components/ui"
@@ -13,10 +15,14 @@ function fmt(dt: string | null) {
 }
 
 export default function LeadsPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [rows, setRows] = useState<LeadRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>("")
   const [editing, setEditing] = useState<LeadRow | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -38,8 +44,37 @@ export default function LeadsPage() {
   }
 
   useEffect(() => {
+    const id = searchParams.get("id")
+    if (!id) return
+    if (!rows.length) return
+    if (drawerOpen) return
+
+    const matched = rows.find((r) => r.id === id)
+    if (!matched) return
+    setEditing(matched)
+    setDrawerOpen(true)
+  }, [drawerOpen, rows, searchParams])
+
+  useEffect(() => {
     load()
   }, [])
+
+  function clearIdFromUrl() {
+    if (!searchParams.get("id")) return
+    const nextParams = new URLSearchParams()
+    searchParams.forEach((value, key) => {
+      if (key === "id") return
+      nextParams.set(key, value)
+    })
+    const qs = nextParams.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
+  function closeDrawer() {
+    clearIdFromUrl()
+    setDrawerOpen(false)
+    setEditing(null)
+  }
 
   async function remove(id: string) {
     const { error } = await supabase.from("leads").delete().eq("id", id)
@@ -108,13 +143,13 @@ export default function LeadsPage() {
       alert(error.message)
       return
     }
-    setEditing(null)
+    closeDrawer()
     await load()
   }
 
   return (
     <>
-      <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))' }}>
+      <div className="relative">
         <Card
           title="客户需求列表"
           right={
@@ -173,7 +208,12 @@ export default function LeadsPage() {
                           <div className="truncate text-sm font-semibold text-gray-900">
                             {r.name}
                           </div>
-                          <span className="text-xs text-gray-500">{r.phone}</span>
+                          <Link
+                            href={`/customers/${encodeURIComponent(r.phone)}`}
+                            className="text-xs text-gray-500 hover:text-gray-900 underline underline-offset-2"
+                          >
+                            {r.phone}
+                          </Link>
                           <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] text-gray-600 font-medium">
                             {r.contact_type === "appointment"
                               ? "预约时间"
@@ -211,7 +251,10 @@ export default function LeadsPage() {
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <Button variant="ghost" onClick={() => setEditing(r)}>
+                      <Button variant="ghost" onClick={() => {
+                        setEditing(r)
+                        setDrawerOpen(true)
+                      }}>
                         处理
                       </Button>
                       <Button
@@ -239,112 +282,114 @@ export default function LeadsPage() {
           )}
         </Card>
 
-        <Card
-          title={editing ? "处理客户需求" : "处理区"}
-          right={
-            editing ? (
-              <Button variant="ghost" onClick={() => setEditing(null)}>
-                取消
-              </Button>
-            ) : null
-          }
+        <div
+          className={[
+            "fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity",
+            drawerOpen ? "opacity-100" : "opacity-0 pointer-events-none",
+          ].join(" ")}
+          onClick={closeDrawer}
+        />
+
+        <aside
+          className={[
+            "fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 ease-out",
+            drawerOpen ? "translate-x-0" : "translate-x-full",
+          ].join(" ")}
         >
-          {!editing ? (
-            <div className="text-sm text-gray-500">
-              在左侧选择一条需求点击"处理"。
+          <div className="h-full flex flex-col">
+            <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 py-4">
+              <div className="min-w-0">
+                <div className="text-base font-semibold text-gray-900">{editing ? "处理客户需求" : "处理区"}</div>
+                <div className="text-xs text-gray-500 mt-1">{editing ? "修改状态/备注后保存" : "在左侧选择一条需求点击“处理”。"}</div>
+              </div>
+              <button
+                type="button"
+                onClick={closeDrawer}
+                className="shine-hover shine-hover-dark rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+              >
+                关闭
+              </button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-2 font-medium">
-                    客户
-                  </label>
-                  <Input value={editing.name} readOnly />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-2 font-medium">
-                    电话
-                  </label>
-                  <Input value={editing.phone} readOnly />
-                </div>
-              </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-2 font-medium">
-                    联系方式
-                  </label>
-                  <Input
-                    value={
-                      editing.contact_type === "appointment"
-                        ? "预约时间"
-                        : "立即联系"
-                    }
-                    readOnly
-                  />
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+              {!editing ? (
+                <div className="text-sm text-gray-500">在左侧选择一条需求点击"处理"。</div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-2 font-medium">客户</label>
+                      <Input value={editing.name} readOnly />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-2 font-medium">电话</label>
+                      <Input value={editing.phone} readOnly />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-2 font-medium">联系方式</label>
+                      <Input
+                        value={editing.contact_type === "appointment" ? "预约时间" : "立即联系"}
+                        readOnly
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-2 font-medium">预约时间</label>
+                      <Input value={fmt(editing.appointment_time)} readOnly />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-2">需求</label>
+                    <Textarea rows={6} value={editing.message} readOnly />
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-2 font-medium">状态</label>
+                      <select
+                        value={editing.status}
+                        onChange={(e) =>
+                          setEditing({
+                            ...editing,
+                            status: e.target.value as LeadRow["status"],
+                          })
+                        }
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                      >
+                        <option value="new">待处理</option>
+                        <option value="contacted">已联系</option>
+                        <option value="done">已完成</option>
+                      </select>
+                    </div>
+                    <div />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-2">备注（内部）</label>
+                    <Textarea
+                      rows={5}
+                      value={editing.note ?? ""}
+                      onChange={(e) => setEditing({ ...editing, note: e.target.value })}
+                      placeholder="例如：已加微信，约周三上午回访"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Button onClick={saveEdit} disabled={saving}>
+                      {saving ? "保存中..." : "保存"}
+                    </Button>
+                    <Button variant="ghost" onClick={closeDrawer}>
+                      取消
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-2 font-medium">
-                    预约时间
-                  </label>
-                  <Input value={fmt(editing.appointment_time)} readOnly />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 mb-2">需求</label>
-                <Textarea rows={6} value={editing.message} readOnly />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-2 font-medium">
-                    状态
-                  </label>
-                  <select
-                    value={editing.status}
-                    onChange={(e) =>
-                      setEditing({
-                        ...editing,
-                        status: e.target.value as LeadRow["status"],
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                  >
-                    <option value="new">待处理</option>
-                    <option value="contacted">已联系</option>
-                    <option value="done">已完成</option>
-                  </select>
-                </div>
-                <div />
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 mb-2">
-                  备注（内部）
-                </label>
-                <Textarea
-                  rows={5}
-                  value={editing.note ?? ""}
-                  onChange={(e) =>
-                    setEditing({ ...editing, note: e.target.value })
-                  }
-                  placeholder="例如：已加微信，约周三上午回访"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button onClick={saveEdit} disabled={saving}>
-                  {saving ? "保存中..." : "保存"}
-                </Button>
-                <Button variant="ghost" onClick={() => setEditing(null)}>
-                  关闭
-                </Button>
-              </div>
+              )}
             </div>
-          )}
-        </Card>
+          </div>
+        </aside>
       </div>
 
       {/* 删除确认模态框 */}

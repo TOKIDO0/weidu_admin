@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import type { ReviewRow } from "@/lib/types"
 import { Button, Card, Textarea, Input } from "@/components/ui"
@@ -13,10 +14,14 @@ function clip(text: string, n = 80) {
 }
 
 export default function ReviewsPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [rows, setRows] = useState<ReviewRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>("")
   const [editing, setEditing] = useState<ReviewRow | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -40,8 +45,37 @@ export default function ReviewsPage() {
   }
 
   useEffect(() => {
+    const id = searchParams.get("id")
+    if (!id) return
+    if (!rows.length) return
+    if (drawerOpen) return
+
+    const matched = rows.find((r) => r.id === id)
+    if (!matched) return
+    setEditing(matched)
+    setDrawerOpen(true)
+  }, [drawerOpen, rows, searchParams])
+
+  useEffect(() => {
     load()
   }, [])
+
+  function clearIdFromUrl() {
+    if (!searchParams.get("id")) return
+    const nextParams = new URLSearchParams()
+    searchParams.forEach((value, key) => {
+      if (key === "id") return
+      nextParams.set(key, value)
+    })
+    const qs = nextParams.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
+  function closeDrawer() {
+    clearIdFromUrl()
+    setDrawerOpen(false)
+    setEditing(null)
+  }
 
   async function toggle(id: string, patch: Partial<ReviewRow>) {
     const { error } = await supabase.from("reviews").update(patch).eq("id", id)
@@ -161,12 +195,12 @@ export default function ReviewsPage() {
       alert(error.message)
       return
     }
-    setEditing(null)
+    closeDrawer()
     await load()
   }
 
   return (
-    <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))' }}>
+    <div className="relative">
       <Card
         title="评价列表"
         right={
@@ -224,7 +258,10 @@ export default function ReviewsPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <Button variant="ghost" onClick={() => setEditing(r)}>
+                    <Button variant="ghost" onClick={() => {
+                      setEditing(r)
+                      setDrawerOpen(true)
+                    }}>
                       编辑
                     </Button>
                     <Button
@@ -252,22 +289,40 @@ export default function ReviewsPage() {
         )}
       </Card>
 
-      <Card
-        title={editing ? "编辑评价" : "编辑区"}
-        right={
-          editing ? (
-            <Button variant="ghost" onClick={() => setEditing(null)}>
-              取消
-            </Button>
-          ) : null
-        }
+      <div
+        className={[
+          "fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity",
+          drawerOpen ? "opacity-100" : "opacity-0 pointer-events-none",
+        ].join(" ")}
+        onClick={closeDrawer}
+      />
+
+      <aside
+        className={[
+          "fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 ease-out",
+          drawerOpen ? "translate-x-0" : "translate-x-full",
+        ].join(" ")}
       >
-        {!editing ? (
-          <div className="text-sm text-gray-500">
-            在左侧选择一条评价点击"编辑"。
+        <div className="h-full flex flex-col">
+          <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 py-4">
+            <div className="min-w-0">
+              <div className="text-base font-semibold text-gray-900">{editing ? "编辑评价" : "编辑区"}</div>
+              <div className="text-xs text-gray-500 mt-1">{editing ? "修改信息后保存" : "在左侧选择一条评价点击“编辑”。"}</div>
+            </div>
+            <button
+              type="button"
+              onClick={closeDrawer}
+              className="shine-hover shine-hover-dark rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+            >
+              关闭
+            </button>
           </div>
-        ) : (
-          <div className="space-y-4">
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+            {!editing ? (
+              <div className="text-sm text-gray-500">在左侧选择一条评价点击"编辑"。</div>
+            ) : (
+              <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-xs text-gray-600 mb-2 font-medium">
@@ -420,13 +475,15 @@ export default function ReviewsPage() {
               <Button onClick={saveEdit} disabled={saving}>
                 {saving ? "保存中..." : "保存"}
               </Button>
-              <Button variant="ghost" onClick={() => setEditing(null)}>
-                关闭
+              <Button variant="ghost" onClick={closeDrawer}>
+                取消
               </Button>
             </div>
+              </div>
+            )}
           </div>
-        )}
-      </Card>
+        </div>
+      </aside>
 
       {/* 删除确认模态框 */}
       {deleteConfirm && (

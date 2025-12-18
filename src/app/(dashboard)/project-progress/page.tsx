@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import type { ProjectRow } from "@/lib/types"
 import { Button, Card, Input, Textarea } from "@/components/ui"
@@ -28,6 +30,7 @@ const STAGE_OPTIONS = [
 ]
 
 export default function ProjectProgressPage() {
+  const searchParams = useSearchParams()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [progresses, setProgresses] = useState<ProjectProgress[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,10 +40,41 @@ export default function ProjectProgressPage() {
   const [uploading, setUploading] = useState(false)
   const [filterPhone, setFilterPhone] = useState("")
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    const id = searchParams.get("id")
+    if (!id) return
+    if (!progresses.length) return
+    if (drawerOpen) return
+
+    const matched = progresses.find((p) => p.id === id)
+    if (!matched) return
+    setEditing(matched)
+    setSelectedProjectId(matched.project_id)
+    setDrawerOpen(true)
+  }, [drawerOpen, progresses, searchParams])
+
+  function openCreateDrawer() {
+    setSelectedProjectId("")
+    setEditing({
+      stage: "design",
+      progress_date: new Date().toISOString().split('T')[0],
+    })
+    setDrawerOpen(true)
+  }
+
+  function closeDrawer() {
+    setDrawerOpen(false)
+    setEditing(null)
+    setSelectedProjectId("")
+  }
 
   async function loadData() {
     setLoading(true)
@@ -160,8 +194,7 @@ export default function ProjectProgressPage() {
         if (error) throw error
       }
 
-      setEditing(null)
-      setSelectedProjectId("")
+      closeDrawer()
       await loadData()
     } catch (err: any) {
       alert(`保存失败: ${err.message}`)
@@ -170,14 +203,28 @@ export default function ProjectProgressPage() {
     }
   }
 
-  async function deleteProgress(id: string) {
-    if (!confirm("确定要删除这条进度记录吗？")) return
-    const { error } = await supabase.from("project_progress").delete().eq("id", id)
-    if (error) {
-      alert(error.message)
-      return
+  function requestDeleteProgress(id: string) {
+    setPendingDeleteId(id)
+  }
+
+  async function confirmDeleteProgress() {
+    if (!pendingDeleteId || deleting) return
+
+    setDeleting(true)
+    try {
+      const { error } = await supabase
+        .from("project_progress")
+        .delete()
+        .eq("id", pendingDeleteId)
+      if (error) {
+        alert(error.message)
+        return
+      }
+      setPendingDeleteId(null)
+      await loadData()
+    } finally {
+      setDeleting(false)
     }
-    await loadData()
   }
 
   const filteredProgresses = filterPhone
@@ -222,8 +269,7 @@ export default function ProjectProgressPage() {
         </p>
       </div>
 
-      <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))' }}>
-        {/* 进度列表 */}
+      <div className="relative">
         <Card
           title="进度记录"
           right={
@@ -238,6 +284,13 @@ export default function ProjectProgressPage() {
               <Button variant="ghost" onClick={loadData} disabled={loading}>
                 刷新
               </Button>
+              <button
+                type="button"
+                onClick={openCreateDrawer}
+                className="shine-hover rounded-full bg-black text-white px-4 py-2 text-xs font-semibold border border-black hover:bg-gray-900 transition-colors"
+              >
+                添加进度
+              </button>
             </div>
           }
         >
@@ -262,9 +315,12 @@ export default function ProjectProgressPage() {
                             <span className="text-xs font-medium text-purple-600">
                               {project?.title || "未知项目"}
                             </span>
-                            <span className="text-xs text-gray-500">
+                            <Link
+                              href={`/customers/${encodeURIComponent(latestProgress.customer_phone)}`}
+                              className="text-xs text-gray-500 hover:text-gray-900 underline underline-offset-2"
+                            >
                               {latestProgress.customer_phone}
-                            </span>
+                            </Link>
                             <span className="text-xs text-gray-400">最新更新</span>
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -304,10 +360,11 @@ export default function ProjectProgressPage() {
                           <Button variant="ghost" onClick={() => {
                             setEditing(latestProgress)
                             setSelectedProjectId(latestProgress.project_id)
+                            setDrawerOpen(true)
                           }}>
                             编辑
                           </Button>
-                          <Button variant="danger" onClick={() => deleteProgress(latestProgress.id)}>
+                          <Button variant="danger" onClick={() => requestDeleteProgress(latestProgress.id)}>
                             删除
                           </Button>
                         </div>
@@ -374,10 +431,11 @@ export default function ProjectProgressPage() {
                                     <Button variant="ghost"  onClick={() => {
                                       setEditing(progress)
                                       setSelectedProjectId(progress.project_id)
+                                      setDrawerOpen(true)
                                     }}>
                                       编辑
                                     </Button>
-                                    <Button variant="danger"  onClick={() => deleteProgress(progress.id)}>
+                                    <Button variant="danger"  onClick={() => requestDeleteProgress(progress.id)}>
                                       删除
                                     </Button>
                                   </div>
@@ -397,21 +455,40 @@ export default function ProjectProgressPage() {
           )}
         </Card>
 
-        {/* 编辑/创建表单 */}
-        <Card
-          title={editing?.id ? "编辑进度" : "新建进度"}
-          right={
-            editing ? (
-              <Button variant="ghost" onClick={() => {
-                setEditing(null)
-                setSelectedProjectId("")
-              }}>
-                取消
-              </Button>
-            ) : null
-          }
+        <div
+          className={[
+            "fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity",
+            drawerOpen ? "opacity-100" : "opacity-0 pointer-events-none",
+          ].join(" ")}
+          onClick={closeDrawer}
+        />
+
+        <aside
+          className={[
+            "fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 ease-out",
+            drawerOpen ? "translate-x-0" : "translate-x-full",
+          ].join(" ")}
         >
-          <div className="space-y-4">
+          <div className="h-full flex flex-col">
+            <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 py-4">
+              <div className="min-w-0">
+                <div className="text-base font-semibold text-gray-900">
+                  {editing?.id ? "编辑进度" : "新建进度"}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  填写信息后点击创建/更新即可
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeDrawer}
+                className="shine-hover shine-hover-dark rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
             <div>
               <label className="block text-xs text-gray-600 mb-2 font-medium">
                 选择项目
@@ -430,15 +507,15 @@ export default function ProjectProgressPage() {
                     
                     if (latestProgress && latestProgress.customer_phone) {
                       setEditing({ 
-                        ...editing, 
+                        ...(editing ?? {}),
                         project_id: projectId,
                         customer_phone: latestProgress.customer_phone 
                       })
                     } else {
-                      setEditing({ ...editing, project_id: projectId })
+                      setEditing({ ...(editing ?? {}), project_id: projectId })
                     }
                   } else {
-                    setEditing({ ...editing, project_id: projectId })
+                    setEditing({ ...(editing ?? {}), project_id: projectId })
                   }
                 }}
                 className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
@@ -458,7 +535,7 @@ export default function ProjectProgressPage() {
               </label>
               <Input
                 value={editing?.customer_phone || ""}
-                onChange={(e) => setEditing({ ...editing, customer_phone: e.target.value })}
+                onChange={(e) => setEditing({ ...(editing ?? {}), customer_phone: e.target.value })}
                 placeholder="请输入客户手机号"
               />
             </div>
@@ -470,7 +547,7 @@ export default function ProjectProgressPage() {
                 </label>
                 <select
                   value={editing?.stage || "design"}
-                  onChange={(e) => setEditing({ ...editing, stage: e.target.value as any })}
+                  onChange={(e) => setEditing({ ...(editing ?? {}), stage: e.target.value as any })}
                   className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                 >
                   {STAGE_OPTIONS.map((option) => (
@@ -487,7 +564,7 @@ export default function ProjectProgressPage() {
                 <Input
                   type="date"
                   value={editing?.progress_date || new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setEditing({ ...editing, progress_date: e.target.value })}
+                  onChange={(e) => setEditing({ ...(editing ?? {}), progress_date: e.target.value })}
                 />
               </div>
             </div>
@@ -498,7 +575,7 @@ export default function ProjectProgressPage() {
               </label>
               <Input
                 value={editing?.title || ""}
-                onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+                onChange={(e) => setEditing({ ...(editing ?? {}), title: e.target.value })}
                 placeholder="例如：水电施工完成"
               />
             </div>
@@ -510,7 +587,7 @@ export default function ProjectProgressPage() {
               <Textarea
                 rows={4}
                 value={editing?.description || ""}
-                onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                onChange={(e) => setEditing({ ...(editing ?? {}), description: e.target.value })}
                 placeholder="描述项目的最新进展..."
               />
             </div>
@@ -599,22 +676,49 @@ export default function ProjectProgressPage() {
               <Button onClick={saveProgress} disabled={saving || !editing}>
                 {saving ? "保存中..." : editing?.id ? "更新" : "创建"}
               </Button>
-              {!editing && (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setEditing({
-                      stage: "design",
-                      progress_date: new Date().toISOString().split('T')[0],
-                    })
-                  }}
-                >
-                  新建进度
-                </Button>
-              )}
+              <Button variant="ghost" onClick={closeDrawer}>
+                取消
+              </Button>
+            </div>
+
             </div>
           </div>
-        </Card>
+        </aside>
+
+        {pendingDeleteId && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={() => setPendingDeleteId(null)}
+            />
+            <div className="relative w-[92vw] max-w-md rounded-2xl bg-white border border-black/10 shadow-2xl">
+              <div className="px-6 py-5 border-b border-gray-200">
+                <div className="text-base font-semibold text-gray-900">确认删除</div>
+                <div className="text-xs text-gray-600 mt-2">
+                  删除后无法恢复，确定要删除这条进度记录吗？
+                </div>
+              </div>
+              <div className="px-6 py-5 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPendingDeleteId(null)}
+                  className="shine-hover shine-hover-dark rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+                  disabled={deleting}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteProgress}
+                  className="shine-hover rounded-lg border border-black bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={deleting}
+                >
+                  {deleting ? "删除中..." : "确认"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
