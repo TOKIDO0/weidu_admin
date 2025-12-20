@@ -6,25 +6,26 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import type { ProjectRow } from "@/lib/types"
 import { Button } from "@/components/ui"
-import { 
-  Search, 
-  X, 
-  Plus, 
-  LayoutGrid, 
-  List as ListIcon, 
-  Edit3, 
-  Trash2, 
-  ArrowUp,
+import {
+  Search,
+  X,
+  Plus,
+  LayoutGrid,
+  List as ListIcon,
   MapPin,
-  Calendar,
-  Maximize2,
-  DollarSign,
   Image as ImageIcon,
+  ArrowUp,
+  Edit3,
+  Trash2,
+  DollarSign,
   Save,
   CheckCircle2,
   Upload,
-  Trash
+  Trash,
+  Calendar,
+  Maximize2,
 } from "lucide-react"
+import { useMobileDrawerStatus } from "@/hooks/useMobileDrawerStatus"
 
 type ProjectDraft = {
   id?: string
@@ -256,6 +257,8 @@ export default function ProjectsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [drawerAnimation, setDrawerAnimation] = useState<"animate-slide-in" | "animate-slide-out" | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null)
+
+  useMobileDrawerStatus(isDrawerOpen)
 
   const isEditing = useMemo(() => Boolean(draft.id), [draft.id])
   

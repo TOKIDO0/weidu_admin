@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/Sidebar"
 import { Topbar } from "@/components/Topbar"
 import { AIChat } from "@/components/AIChat"
 import { Menu } from "lucide-react"
+import { MOBILE_DRAWER_EVENT, type MobileDrawerEventDetail } from "@/hooks/useMobileDrawerStatus"
 
 export default function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default function DashboardLayout({
   const [ready, setReady] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [isMobileDrawerBlocking, setIsMobileDrawerBlocking] = useState(false)
   const checkingRef = useRef(false)
 
   useEffect(() => {
@@ -79,6 +81,18 @@ export default function DashboardLayout({
     }
   }, [router, ready])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<MobileDrawerEventDetail>).detail
+      if (!detail) return
+      const isMobile = window.matchMedia("(max-width: 1024px)").matches
+      setIsMobileDrawerBlocking(detail.isOpen && isMobile)
+    }
+    window.addEventListener(MOBILE_DRAWER_EVENT, handler as EventListener)
+    return () => window.removeEventListener(MOBILE_DRAWER_EVENT, handler as EventListener)
+  }, [])
+
   if (!ready) {
     return (
       <div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">
@@ -106,19 +120,21 @@ export default function DashboardLayout({
         <main className="flex-1 p-4 sm:p-6 relative">
           {children}
           {/* 悬浮帮助卡片 */}
-          <button
-            onClick={() => setChatOpen(true)}
-            className="fixed left-4 bottom-6 z-[60] flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/95 px-4 py-3 shadow-lg shadow-purple-200/80 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 text-white">
-              <Menu className="hidden" />
-              <span className="text-lg font-semibold">AI</span>
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-semibold text-gray-900">需要帮助？</p>
-              <p className="text-xs text-gray-500">随时询问智能助手</p>
-            </div>
-          </button>
+          {!isMobileDrawerBlocking && (
+            <button
+              onClick={() => setChatOpen(true)}
+              className="fixed left-4 bottom-6 z-[60] flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/95 px-4 py-3 shadow-lg shadow-purple-200/80 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl lg:flex"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 text-white">
+                <Menu className="hidden" />
+                <span className="text-lg font-semibold">AI</span>
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-900">需要帮助？</p>
+                <p className="text-xs text-gray-500">随时询问智能助手</p>
+              </div>
+            </button>
+          )}
           {/* AI 聊天组件 - 放在主内容区域 */}
           <AIChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />
         </main>

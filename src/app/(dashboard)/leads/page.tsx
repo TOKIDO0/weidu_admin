@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import type { LeadRow } from "@/lib/types"
 import { Button, Card, Input, Textarea } from "@/components/ui"
+import { useMobileDrawerStatus } from "@/hooks/useMobileDrawerStatus"
 
 function fmt(dt: string | null) {
   if (!dt) return "-"
@@ -28,6 +29,7 @@ export default function LeadsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false)
   const isDrawerClosingRef = useRef(false)
+  useMobileDrawerStatus(drawerOpen)
 
   async function load() {
     setError("")

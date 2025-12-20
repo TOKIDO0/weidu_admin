@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient"
 import type { ReviewRow } from "@/lib/types"
 import { Button, Card, Textarea, Input } from "@/components/ui"
 import { Upload, X } from "lucide-react"
+import { useMobileDrawerStatus } from "@/hooks/useMobileDrawerStatus"
 
 function clip(text: string, n = 80) {
   const t = (text ?? "").trim()
@@ -27,6 +28,8 @@ export default function ReviewsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+
+  useMobileDrawerStatus(drawerOpen)
 
   async function load() {
     setError("")
