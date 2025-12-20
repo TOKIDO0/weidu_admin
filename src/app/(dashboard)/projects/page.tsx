@@ -254,6 +254,7 @@ export default function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [drawerAnimation, setDrawerAnimation] = useState<"animate-slide-in" | "animate-slide-out" | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null)
 
   const isEditing = useMemo(() => Boolean(draft.id), [draft.id])
@@ -302,15 +303,21 @@ export default function ProjectsPage() {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
+  function openDrawer() {
+    setDrawerAnimation("animate-slide-in")
+    setIsDrawerOpen(true)
+  }
+
   function closeDrawer() {
-    clearIdFromUrl()
-    const drawer = document.getElementById('project-drawer')
-    if (drawer) {
-      drawer.style.animation = 'slideOutToRight 0.3s ease-in'
-      setTimeout(() => setIsDrawerOpen(false), 300)
-    } else {
+    if (!isDrawerOpen) return
+    setDrawerAnimation("animate-slide-out")
+    window.setTimeout(() => {
+      clearIdFromUrl()
       setIsDrawerOpen(false)
-    }
+      setDraft(emptyDraft())
+      setPrivateCustomerPhone("")
+      setDrawerAnimation(null)
+    }, 280)
   }
 
   async function loadPrivateMeta(projectId: string) {
@@ -360,18 +367,17 @@ export default function ProjectsPage() {
     })
     setPrivateCustomerPhone("")
     void loadPrivateMeta(r.id)
-    setIsDrawerOpen(true)
+    openDrawer()
   }
 
   function resetDraft() {
     setDraft(emptyDraft())
     setPrivateCustomerPhone("")
-    closeDrawer()
   }
 
   function handleCreate() {
     resetDraft()
-    setIsDrawerOpen(true)
+    openDrawer()
   }
 
   async function save(e?: React.FormEvent) {
@@ -455,7 +461,7 @@ export default function ProjectsPage() {
     }
 
     setSaving(false)
-    resetDraft()
+    closeDrawer()
     await load()
   }
 
@@ -497,8 +503,8 @@ export default function ProjectsPage() {
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
       
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-4">
+        <div className="max-w-7xl mx-auto flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
               <LayoutGrid className="w-5 h-5 text-white" />
@@ -506,23 +512,23 @@ export default function ProjectsPage() {
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">项目管理台</h1>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="relative group">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+            <div className="relative group w-full md:w-auto">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input 
                 type="text" 
                 placeholder="搜索项目..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm w-64 focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all text-slate-900 placeholder:text-slate-400"
+                className="pl-9 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all text-slate-900 placeholder:text-slate-400"
               />
             </div>
             
-            <div className="h-6 w-px bg-slate-200 mx-2"></div>
+            <div className="h-6 w-px bg-slate-200 mx-2 md:block hidden"></div>
 
             <button 
               onClick={handleCreate}
-              className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-full text-sm font-medium transition-all shadow-lg shadow-slate-200 active:scale-95"
+              className="hidden md:flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-full text-sm font-medium transition-all shadow-lg shadow-slate-200 active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>新建项目</span>
@@ -678,6 +684,15 @@ export default function ProjectsPage() {
         )}
       </main>
 
+      {/* Mobile floating new button */}
+      <button
+        onClick={handleCreate}
+        className="fixed bottom-6 right-4 z-40 flex md:hidden items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-3 rounded-full text-sm font-medium shadow-xl shadow-slate-900/20 active:scale-95"
+      >
+        <Plus className="w-4 h-4" />
+        新建项目
+      </button>
+
       {/* Editor Drawer / Slide-over */}
       {isDrawerOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -690,8 +705,7 @@ export default function ProjectsPage() {
           {/* Drawer Panel - 从右往左滑入动画 */}
           <div 
             id="project-drawer"
-            className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col" 
-            style={{ animation: 'slideInFromRight 0.3s ease-out' }}
+            className={`relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col ${drawerAnimation ?? "animate-slide-in"}`}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">

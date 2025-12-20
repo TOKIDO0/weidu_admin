@@ -224,59 +224,65 @@ export default function ReviewsPage() {
             {rows.map((r) => (
               <div
                 key={r.id}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 hover:bg-gray-100 transition-colors"
+                className="rounded-2xl border border-gray-200 bg-white/90 px-4 py-5 hover:border-gray-300 transition-colors"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="truncate text-sm font-semibold text-gray-900">
-                        {r.name || "匿名"}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div className="grid grid-cols-[auto_auto] sm:flex sm:flex-wrap gap-2 sm:gap-3 items-center text-sm">
+                      <div className="font-semibold text-gray-900 truncate">{r.name || "匿名"}</div>
+                      <span className="text-xs text-gray-500">{r.project_name || "-"}</span>
+                      <div className="flex items-center gap-2">
+                        {r.approved ? (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] text-green-700 font-semibold">
+                            已通过
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] text-gray-600 font-semibold">
+                            待审核
+                          </span>
+                        )}
+                        {r.pinned ? (
+                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] text-orange-700 font-semibold">
+                            置顶
+                          </span>
+                        ) : null}
                       </div>
-                      <span className="text-xs text-gray-500">
-                        {r.project_name || "-"}
-                      </span>
-                      {r.approved ? (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] text-green-700 font-medium">
-                          已通过
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] text-gray-600 font-medium">
-                          待审核
-                        </span>
-                      )}
-                      {r.pinned ? (
-                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] text-orange-700 font-medium">
-                          置顶
-                        </span>
-                      ) : null}
-                      <span className="text-xs text-gray-500">
-                        {r.rating ? `⭐ ${r.rating}` : "未评分"}
-                      </span>
+                      <span className="text-xs text-gray-500 sm:ml-auto">{r.rating ? `⭐ ${r.rating}` : "未评分"}</span>
                     </div>
-                    <div className="mt-2 text-xs text-gray-600">
-                      {clip(r.content, 120)}
+                    <div className="text-sm leading-relaxed text-gray-700 whitespace-pre-line">
+                      {clip(r.content, 140)}
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <Button variant="ghost" onClick={() => {
-                      setEditing(r)
-                      setDrawerOpen(true)
-                    }}>
+                  <div className="grid grid-cols-2 sm:flex sm:flex-nowrap gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="ghost"
+                      className="justify-center"
+                      onClick={() => {
+                        setEditing(r)
+                        setDrawerOpen(true)
+                      }}
+                    >
                       编辑
                     </Button>
                     <Button
                       variant="ghost"
+                      className="justify-center"
                       onClick={() => toggle(r.id, { approved: !r.approved })}
                     >
                       {r.approved ? "撤销通过" : "通过"}
                     </Button>
                     <Button
                       variant="ghost"
+                      className="justify-center"
                       onClick={() => toggle(r.id, { pinned: !r.pinned })}
                     >
                       {r.pinned ? "取消置顶" : "置顶"}
                     </Button>
-                    <Button variant="danger" onClick={() => setDeleteConfirm({ id: r.id, name: r.name || "匿名" })}>
+                    <Button
+                      variant="danger"
+                      className="justify-center"
+                      onClick={() => setDeleteConfirm({ id: r.id, name: r.name || "匿名" })}
+                    >
                       删除
                     </Button>
                   </div>
@@ -378,57 +384,65 @@ export default function ReviewsPage() {
                     }
                     placeholder="输入头像URL或使用下方上传"
                   />
-                  <div
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`
-                      border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
-                      ${isDragging 
-                        ? 'border-purple-500 bg-purple-50' 
-                        : 'border-gray-300 hover:border-purple-400 hover:bg-gray-50'
-                      }
-                      ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                      disabled={uploading}
-                    />
-                    <Upload className="w-6 h-6 mx-auto mb-2 text-gray-400" />
-                    <p className="text-xs text-gray-600 mb-1">
-                      {uploading ? '上传中...' : '拖动图片到此处或点击选择上传'}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      支持 JPG、PNG、GIF 格式
-                    </p>
-                  </div>
-                  {editing.avatar_url && (
-                    <div className="relative inline-block">
-                      <img 
-                        src={editing.avatar_url} 
-                        alt="头像预览" 
-                        className="w-16 h-16 rounded-full object-cover border border-gray-200"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none'
-                        }}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setEditing({ ...editing, avatar_url: "" })
-                        }}
-                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      {editing.avatar_url ? (
+                        <img
+                          src={editing.avatar_url}
+                          alt="头像预览"
+                          className="w-16 h-16 rounded-full object-cover border border-gray-200"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none"
+                          }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-[10px] text-gray-400">
+                          暂无头像
+                        </div>
+                      )}
+                      {editing.avatar_url ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditing({ ...editing, avatar_url: "" })
+                          }}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      ) : null}
                     </div>
-                  )}
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`
+                        flex-1 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
+                        ${isDragging 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-300 hover:border-purple-400 hover:bg-gray-50'
+                        }
+                        ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
+                      `}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                      <Upload className="w-6 h-6 mx-auto mb-2 text-gray-400" />
+                      <p className="text-xs text-gray-600 mb-1">
+                        {uploading ? "上传中..." : editing.avatar_url ? "修改头像" : "拖动图片到此处或点击选择上传"}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        支持 JPG、PNG、GIF 格式
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

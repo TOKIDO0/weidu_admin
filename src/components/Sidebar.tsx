@@ -66,11 +66,11 @@ export function Sidebar({ isOpen, onClose, onChatOpen }: { isOpen?: boolean; onC
       )}
       
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        w-64 shrink-0 bg-white border-r border-gray-200 
-        flex flex-col h-screen
+        z-50 w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col
+        fixed inset-y-0 left-0 min-h-screen
         transform transition-transform duration-300 ease-in-out
         ${isOpen !== false ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        lg:sticky lg:top-0 lg:self-start lg:min-h-screen lg:translate-x-0 lg:shadow-none
       `}>
       {/* Logo Section */}
       <div className="p-4 sm:p-6 pb-4">
@@ -187,28 +187,7 @@ export function Sidebar({ isOpen, onClose, onChatOpen }: { isOpen?: boolean; onC
         ))}
       </nav>
 
-
-      {/* Help Widget */}
-      <div className="p-2 sm:p-3 pb-4 sm:pb-6">
-        <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-200">
-          <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shrink-0">
-              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-1">需要帮助？</h3>
-              <p className="text-[10px] sm:text-xs text-gray-500">与我们的 AI 助手聊天</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => onChatOpen?.()}
-            className="w-full rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs sm:text-sm font-medium py-1.5 sm:py-2 px-3 sm:px-4 hover:opacity-90 transition-opacity"
-          >
-            打开聊天
-          </button>
-        </div>
-      </div>
-      
+  
     </aside>
     </>
   )

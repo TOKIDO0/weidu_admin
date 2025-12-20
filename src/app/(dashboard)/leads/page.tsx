@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
@@ -27,6 +27,7 @@ export default function LeadsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false)
+  const isDrawerClosingRef = useRef(false)
 
   async function load() {
     setError("")
@@ -48,6 +49,7 @@ export default function LeadsPage() {
     if (!id) return
     if (!rows.length) return
     if (drawerOpen) return
+    if (isDrawerClosingRef.current) return
 
     const matched = rows.find((r) => r.id === id)
     if (!matched) return
@@ -71,10 +73,18 @@ export default function LeadsPage() {
   }
 
   function closeDrawer() {
+    isDrawerClosingRef.current = true
     clearIdFromUrl()
     setDrawerOpen(false)
     setEditing(null)
   }
+
+  useEffect(() => {
+    if (!isDrawerClosingRef.current) return
+    if (!searchParams.get("id")) {
+      isDrawerClosingRef.current = false
+    }
+  }, [searchParams])
 
   async function remove(id: string) {
     const { error } = await supabase.from("leads").delete().eq("id", id)
@@ -193,21 +203,19 @@ export default function LeadsPage() {
               {rows.map((r) => (
                 <div
                   key={r.id}
-                  className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 hover:bg-gray-100 transition-colors"
+                  className="rounded-2xl border border-gray-200 bg-white px-4 py-5 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(r.id)}
                         onChange={() => toggleSelect(r.id)}
                         className="mt-1 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="truncate text-sm font-semibold text-gray-900">
-                            {r.name}
-                          </div>
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <div className="font-semibold text-gray-900 truncate">{r.name}</div>
                           <Link
                             href={`/customers/${encodeURIComponent(r.phone)}`}
                             className="text-xs text-gray-500 hover:text-gray-900 underline underline-offset-2"
@@ -215,63 +223,69 @@ export default function LeadsPage() {
                             {r.phone}
                           </Link>
                           <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] text-gray-600 font-medium">
-                            {r.contact_type === "appointment"
-                              ? "预约时间"
-                              : "立即联系"}
+                            {r.contact_type === "appointment" ? "预约时间" : "立即联系"}
                           </span>
-                          <span className={`
-                            rounded-full px-2 py-0.5 text-[11px] font-semibold
-                            ${r.status === "new" 
-                              ? "bg-red-100 text-red-700 border border-red-300" 
-                              : r.status === "contacted"
-                              ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                              : "bg-green-100 text-green-700 border border-green-300"
-                            }
-                          `}>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              r.status === "new"
+                                ? "bg-red-100 text-red-700 border border-red-300"
+                                : r.status === "contacted"
+                                ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                                : "bg-green-100 text-green-700 border border-green-300"
+                            }`}
+                          >
                             {r.status === "new" ? "待处理" : r.status === "contacted" ? "已联系" : "已完成"}
                           </span>
                         </div>
-                        <div className="mt-2 text-xs text-gray-600 whitespace-pre-wrap">
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                           {r.message}
                         </div>
-                        <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                        <div className="grid gap-2 text-xs text-gray-500 sm:grid-cols-2">
                           <div>创建：{fmt(r.created_at)}</div>
-                          {r.appointment_time && (
-                            <div>预约：{fmt(r.appointment_time)}</div>
-                          )}
+                          {r.appointment_time && <div>预约：{fmt(r.appointment_time)}</div>}
                         </div>
                         {r.note && (
-                          <div className="mt-2 p-2 rounded bg-blue-50 border border-blue-200">
+                          <div className="mt-2 p-2 rounded-xl bg-blue-50 border border-blue-100">
                             <div className="text-xs font-medium text-blue-700 mb-1">备注（内部）</div>
-                            <div className="text-xs text-blue-600 whitespace-pre-wrap">
-                              {r.note}
-                            </div>
+                            <div className="text-xs text-blue-600 whitespace-pre-wrap">{r.note}</div>
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <Button variant="ghost" onClick={() => {
-                        setEditing(r)
-                        setDrawerOpen(true)
-                      }}>
-                        处理
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => quickStatus(r.id, "contacted")}
-                      >
-                        已联系
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => quickStatus(r.id, "done")}
-                      >
-                        已完成
-                      </Button>
-                      <Button variant="danger" onClick={() => setDeleteConfirm({ id: r.id, name: r.name })}>
-                        删除
-                      </Button>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:justify-end">
+                      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1 sm:flex-none">
+                        <Button
+                          variant="ghost"
+                          className="justify-center"
+                          onClick={() => {
+                            setEditing(r)
+                            setDrawerOpen(true)
+                          }}
+                        >
+                          处理
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-center"
+                          onClick={() => quickStatus(r.id, "contacted")}
+                        >
+                          已联系
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-center"
+                          onClick={() => quickStatus(r.id, "done")}
+                        >
+                          已完成
+                        </Button>
+                        <Button
+                          variant="danger"
+                          className="justify-center"
+                          onClick={() => setDeleteConfirm({ id: r.id, name: r.name })}
+                        >
+                          删除
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

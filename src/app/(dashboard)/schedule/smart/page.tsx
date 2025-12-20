@@ -72,6 +72,7 @@ export default function SmartSchedulingPage() {
   useEffect(() => {
     if (projects.length > 0 && selectedProjects.length > 0) {
       generateTasksFromProjects()
+      loadSavedScheduleForTasks(tasks)
     } else {
       setTasks([])
       setSchedule([])
@@ -199,10 +200,6 @@ export default function SmartSchedulingPage() {
       }
 
       setProjects((projectsData || []) as ProjectRow[])
-      // 默认选中所有项目
-      if (selectedProjects.length === 0) {
-        setSelectedProjects((projectsData || []).map(p => p.id))
-      }
     } catch (error) {
       console.error("加载数据失败:", error)
     } finally {
@@ -657,227 +654,218 @@ export default function SmartSchedulingPage() {
       )}
 
       {/* 排期结果 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 任务列表 */}
-        <Card title={`任务列表 (${tasks.length})`}>
+      {selectedProjects.length === 0 ? (
+        <Card title="任务列表">
           <div className="p-6">
-            <div className="space-y-3 max-h-[600px] overflow-y-auto">
-              {tasks.map((task) => {
-                const scheduled = schedule.find((s) => s.taskId === task.id)
-                const taskIndex = tasks.findIndex(t => t.id === task.id)
-                return (
-                  <div
-                    key={task.id}
-                    className={`p-4 rounded-lg border ${
-                      task.status === "conflict"
-                        ? "border-orange-300 bg-orange-50"
-                        : task.status === "scheduled"
-                        ? "border-green-300 bg-green-50"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-gray-900">
-                            {task.projectTitle} - {task.taskType}
-                          </span>
-                          {task.status === "scheduled" && (
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          )}
-                          {task.status === "conflict" && (
-                            <XCircle className="w-4 h-4 text-orange-600" />
-                          )}
-                        </div>
-                        {scheduled ? (
-                          <div className="text-sm text-gray-600 space-y-2 mt-2">
-                            <div className="flex items-center gap-2">
-                              <Users className="w-3 h-3" />
-                              <select
-                                value={scheduled.workerId}
-                                onChange={(e) => {
-                                  const newWorkerId = e.target.value
-                                  const newWorker = workers.find(w => w.id === newWorkerId)
-                                  if (newWorker) {
-                                    setSchedule(prev => prev.map(s => 
-                                      s.taskId === task.id 
-                                        ? { ...s, workerId: newWorker.id, workerName: newWorker.name }
-                                        : s
-                                    ))
-                                    setTasks(prev => prev.map(t =>
-                                      t.id === task.id
-                                        ? { ...t, workerId: newWorker.id, workerName: newWorker.name }
-                                        : t
-                                    ))
-                                  }
-                                }}
-                                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
-                              >
-                                {workers.map(w => (
-                                  <option key={w.id} value={w.id}>{w.name} ({w.role})</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Calendar className="w-3 h-3" />
-                              <input
-                                type="date"
-                                value={scheduled.startDate.toISOString().split('T')[0]}
-                                onChange={(e) => {
-                                  const newStartDate = new Date(e.target.value)
-                                  const daysDiff = Math.ceil((scheduled.endDate.getTime() - scheduled.startDate.getTime()) / (1000 * 60 * 60 * 24))
-                                  const newEndDate = new Date(newStartDate.getTime() + daysDiff * 24 * 60 * 60 * 1000)
-                                  setSchedule(prev => prev.map(s =>
-                                    s.taskId === task.id
-                                      ? { ...s, startDate: newStartDate, endDate: newEndDate }
-                                      : s
-                                  ))
-                                  setTasks(prev => prev.map(t =>
-                                    t.id === task.id
-                                      ? { ...t, startDate: newStartDate, endDate: newEndDate }
-                                      : t
-                                  ))
-                                }}
-                                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
-                              />
-                              <span> - </span>
-                              <input
-                                type="date"
-                                value={scheduled.endDate.toISOString().split('T')[0]}
-                                onChange={(e) => {
-                                  const newEndDate = new Date(e.target.value)
-                                  setSchedule(prev => prev.map(s =>
-                                    s.taskId === task.id
-                                      ? { ...s, endDate: newEndDate }
-                                      : s
-                                  ))
-                                  setTasks(prev => prev.map(t =>
-                                    t.id === task.id
-                                      ? { ...t, endDate: newEndDate }
-                                      : t
-                                  ))
-                                  // 更新工期天数
-                                  const newDays = Math.ceil((newEndDate.getTime() - scheduled.startDate.getTime()) / (1000 * 60 * 60 * 24))
-                                  setTasks(prev => prev.map(t =>
-                                    t.id === task.id
-                                      ? { ...t, estimatedDays: newDays }
-                                      : t
-                                  ))
-                                }}
-                                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="w-3 h-3" />
-                              <span>工期: </span>
-                              <input
-                                type="number"
-                                min="1"
-                                value={task.estimatedDays}
-                                onChange={(e) => {
-                                  const newDays = parseInt(e.target.value) || 1
-                                  setTasks(prev => prev.map(t =>
-                                    t.id === task.id
-                                      ? { ...t, estimatedDays: newDays }
-                                      : t
-                                  ))
-                                  // 更新排期中的结束日期
-                                  if (scheduled) {
-                                    const newEndDate = new Date(
-                                      scheduled.startDate.getTime() + newDays * 24 * 60 * 60 * 1000
-                                    )
-                                    setSchedule(prev => prev.map(s =>
-                                      s.taskId === task.id
-                                        ? { ...s, endDate: newEndDate }
-                                        : s
-                                    ))
-                                  }
-                                }}
-                                className="w-16 text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
-                              />
-                              <span> 天</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-500 mt-2">
-                            未分配
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="text-sm text-gray-500 flex flex-col items-center justify-center min-h-[240px] text-center">
+              <p>请选择至少一个项目后，系统才会生成对应的任务列表。</p>
+              <p className="mt-2 text-xs text-gray-400">点击上方“选择项目”按钮即可勾选需要排期的项目。</p>
             </div>
           </div>
         </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 任务列表 */}
+          <Card title={`任务列表 (${tasks.length})`}>
+            <div className="p-6">
+              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                {tasks.length === 0 ? (
+                  <div className="text-sm text-gray-500 text-center py-16">正在根据所选项目生成任务，请稍候...</div>
+                ) : (
+                  tasks.map((task) => {
+                    const scheduled = schedule.find((s) => s.taskId === task.id)
 
-        {/* 工人工作负荷 */}
-        <Card title={`工人列表 (${workers.length})`}>
-          <div className="p-6">
-            <div className="space-y-4">
-              {workers.map((worker) => {
-                const workerTasks = schedule.filter((s) => s.workerId === worker.id)
-                const utilization = (workerTasks.length / worker.maxConcurrent) * 100
-
-                return (
-                  <div
-                    key={worker.id}
-                    className="p-4 rounded-lg border border-gray-200"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">
-                            {worker.name}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            ({worker.role})
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {worker.skills.join(", ")}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">
-                          {workerTasks.length}/{worker.maxConcurrent} 任务
-                        </span>
-                        <button
-                          onClick={() => handleDeleteWorker(worker.id)}
-                          className="p-1 hover:bg-red-50 rounded text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    return (
                       <div
-                        className={`h-2 rounded-full transition-all ${
-                          utilization >= 100
-                            ? "bg-red-500"
-                            : utilization >= 80
-                            ? "bg-orange-500"
-                            : "bg-green-500"
+                        key={task.id}
+                        className={`p-4 rounded-lg border ${
+                          task.status === "conflict"
+                            ? "border-orange-300 bg-orange-50"
+                            : task.status === "scheduled"
+                            ? "border-green-300 bg-green-50"
+                            : "border-gray-200"
                         }`}
-                        style={{ width: `${Math.min(utilization, 100)}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      利用率: {utilization.toFixed(0)}%
-                    </div>
-                  </div>
-                )
-              })}
-              {workers.length === 0 && (
-                <div className="text-center text-sm text-gray-500 py-8">
-                  暂无工人，点击"添加工人"添加
-                </div>
-              )}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-gray-900">
+                                {task.projectTitle} - {task.taskType}
+                              </span>
+                              {task.status === "scheduled" && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                              {task.status === "conflict" && <XCircle className="w-4 h-4 text-orange-600" />}
+                            </div>
+
+                            {scheduled ? (
+                              <div className="text-sm text-gray-600 space-y-2 mt-2">
+                                <div className="flex items-center gap-2">
+                                  <Users className="w-3 h-3" />
+                                  <select
+                                    value={scheduled.workerId}
+                                    onChange={(e) => {
+                                      const newWorkerId = e.target.value
+                                      const newWorker = workers.find((w) => w.id === newWorkerId)
+                                      if (!newWorker) return
+
+                                      setSchedule((prev) =>
+                                        prev.map((s) =>
+                                          s.taskId === task.id
+                                            ? { ...s, workerId: newWorker.id, workerName: newWorker.name }
+                                            : s,
+                                        ),
+                                      )
+                                      setTasks((prev) =>
+                                        prev.map((t) =>
+                                          t.id === task.id ? { ...t, workerId: newWorker.id, workerName: newWorker.name } : t,
+                                        ),
+                                      )
+                                    }}
+                                    className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
+                                  >
+                                    {workers.map((w) => (
+                                      <option key={w.id} value={w.id}>
+                                        {w.name} ({w.role})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Calendar className="w-3 h-3" />
+                                  <input
+                                    type="date"
+                                    value={scheduled.startDate.toISOString().split("T")[0]}
+                                    onChange={(e) => {
+                                      const newStartDate = new Date(e.target.value)
+                                      const daysDiff = Math.ceil(
+                                        (scheduled.endDate.getTime() - scheduled.startDate.getTime()) / (1000 * 60 * 60 * 24),
+                                      )
+                                      const newEndDate = new Date(newStartDate.getTime() + daysDiff * 24 * 60 * 60 * 1000)
+                                      setSchedule((prev) =>
+                                        prev.map((s) =>
+                                          s.taskId === task.id ? { ...s, startDate: newStartDate, endDate: newEndDate } : s,
+                                        ),
+                                      )
+                                      setTasks((prev) =>
+                                        prev.map((t) =>
+                                          t.id === task.id ? { ...t, startDate: newStartDate, endDate: newEndDate } : t,
+                                        ),
+                                      )
+                                    }}
+                                    className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
+                                  />
+                                  <span> - </span>
+                                  <input
+                                    type="date"
+                                    value={scheduled.endDate.toISOString().split("T")[0]}
+                                    onChange={(e) => {
+                                      const newEndDate = new Date(e.target.value)
+                                      setSchedule((prev) =>
+                                        prev.map((s) => (s.taskId === task.id ? { ...s, endDate: newEndDate } : s)),
+                                      )
+                                      setTasks((prev) =>
+                                        prev.map((t) => (t.id === task.id ? { ...t, endDate: newEndDate } : t)),
+                                      )
+                                      const newDays = Math.ceil(
+                                        (newEndDate.getTime() - scheduled.startDate.getTime()) / (1000 * 60 * 60 * 24),
+                                      )
+                                      setTasks((prev) =>
+                                        prev.map((t) => (t.id === task.id ? { ...t, estimatedDays: newDays } : t)),
+                                      )
+                                    }}
+                                    className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
+                                  />
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-3 h-3" />
+                                  <span>工期: </span>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={task.estimatedDays}
+                                    onChange={(e) => {
+                                      const newDays = parseInt(e.target.value) || 1
+                                      setTasks((prev) =>
+                                        prev.map((t) => (t.id === task.id ? { ...t, estimatedDays: newDays } : t)),
+                                      )
+                                      const newEndDate = new Date(scheduled.startDate.getTime() + newDays * 24 * 60 * 60 * 1000)
+                                      setSchedule((prev) =>
+                                        prev.map((s) => (s.taskId === task.id ? { ...s, endDate: newEndDate } : s)),
+                                      )
+                                    }}
+                                    className="w-16 text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
+                                  />
+                                  <span> 天</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-500 mt-2">未分配</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
             </div>
-          </div>
-        </Card>
-      </div>
+          </Card>
+
+          {/* 工人工作负荷 */}
+          <Card title={`工人列表 (${workers.length})`}>
+            <div className="p-6">
+              <div className="space-y-4">
+                {workers.map((worker) => {
+                  const workerTasks = schedule.filter((s) => s.workerId === worker.id)
+                  const utilization = (workerTasks.length / worker.maxConcurrent) * 100
+
+                  return (
+                    <div key={worker.id} className="p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">{worker.name}</span>
+                            <span className="text-sm text-gray-500">({worker.role})</span>
+                            <span className="text-xs text-gray-400">{worker.skills.join(", ")}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">
+                            {workerTasks.length}/{worker.maxConcurrent} 任务
+                          </span>
+                          <button
+                            onClick={() => handleDeleteWorker(worker.id)}
+                            className="p-1 hover:bg-red-50 rounded text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            utilization >= 100
+                              ? "bg-red-500"
+                              : utilization >= 80
+                              ? "bg-orange-500"
+                              : "bg-green-500"
+                          }`}
+                          style={{ width: `${Math.min(utilization, 100)}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">利用率: {utilization.toFixed(0)}%</div>
+                    </div>
+                  )
+                })}
+                {workers.length === 0 && (
+                  <div className="text-center text-sm text-gray-500 py-8">暂无工人，点击"添加工人"添加</div>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* 项目选择模态框 */}
       {showProjectModal && (

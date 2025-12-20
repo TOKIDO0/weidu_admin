@@ -88,7 +88,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 flex">
+    <div className="relative min-h-screen flex text-gray-900 bg-gray-50 lg:bg-[linear-gradient(90deg,#ffffff_0,#ffffff_256px,#f8fafc_256px,#f8fafc_100%)]">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onChatOpen={() => setChatOpen(true)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-4 py-3 flex items-center">
@@ -105,6 +105,20 @@ export default function DashboardLayout({
         </div>
         <main className="flex-1 p-4 sm:p-6 relative">
           {children}
+          {/* 悬浮帮助卡片 */}
+          <button
+            onClick={() => setChatOpen(true)}
+            className="fixed left-4 bottom-6 z-[60] flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/95 px-4 py-3 shadow-lg shadow-purple-200/80 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 text-white">
+              <Menu className="hidden" />
+              <span className="text-lg font-semibold">AI</span>
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-gray-900">需要帮助？</p>
+              <p className="text-xs text-gray-500">随时询问智能助手</p>
+            </div>
+          </button>
           {/* AI 聊天组件 - 放在主内容区域 */}
           <AIChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />
         </main>
